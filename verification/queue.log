@@ -1,0 +1,17 @@
+== T1 同時2本（キュー滞留）: 00:16:20
+model=animagine-xl-4.0.safetensors seed=555 steps=20 cfg=5.0 1024x1024 x1
+63.4s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/q1_00001_.png
+q1 exit=0
+model=animagine-xl-4.0.safetensors seed=666 steps=20 cfg=5.0 1024x1024 x1
+126.7s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/q2_00001_.png
+q2 exit=0
+== T2 timeout残留: 00:18:27
+model=animagine-xl-4.0.safetensors seed=888 steps=20 cfg=5.0 1024x1024 x1
+タイムアウト（5秒）。ComfyUI 側のログを確認すること。
+tmo exit=1
+running 1 pending 0
+== T3 -n 0: 00:18:32
+ComfyUI がエラーを返した (HTTP 400):
+{"error": {"type": "prompt_outputs_failed_validation", "message": "Prompt outputs failed validation", "details": "", "extra_info": {}}, "node_errors": {"4": {"errors": [{"type": "value_smaller_than_min", "message": "Value 0 smaller than min of 1", "details": "batch_size", "extra_info": {"input_name": "batch_size", "input_config": ["INT", {"default": 1, "min": 1, "max": 4096, "tooltip": "The number of latent images in the batch."}], "received_value": 0}}], "dependent_outputs": ["8"], "class_type": "EmptyLatentImage"}}}
+n0 exit=1
+QDONE 00:18:32

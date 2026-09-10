@@ -1,0 +1,65 @@
+===== A_repro1 : 23:58:11
+model=animagine-xl-4.0.safetensors seed=12345 steps=20 cfg=5.0 1024x1024 x1
+67.4s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/rp1_00001_.png
+real 67.44
+user 0.07
+sys 0.03
+----- A_repro1 exit=0 end=23:59:18
+===== B_break : 23:59:18
+model=animagine-xl-4.0.safetensors seed=999 steps=20 cfg=5.0 1024x1024 x1
+65.3s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/cb_00001_.png
+real 65.42
+user 0.07
+sys 0.02
+----- B_break exit=0 end=00:00:24
+===== C_repro2 : 00:00:24
+model=animagine-xl-4.0.safetensors seed=12345 steps=20 cfg=5.0 1024x1024 x1
+64.4s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/rp2_00001_.png
+real 64.46
+user 0.07
+sys 0.02
+----- C_repro2 exit=0 end=00:01:28
+===== D_n2 : 00:01:28
+model=animagine-xl-4.0.safetensors seed=4444 steps=20 cfg=5.0 1024x1024 x2
+126.6s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/n2_00001_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/n2_00002_.png
+real 126.73
+user 0.09
+sys 0.03
+----- D_n2 exit=0 end=00:03:35
+===== E_832 : 00:03:35
+model=animagine-xl-4.0.safetensors seed=777 steps=20 cfg=5.0 832x1216 x1
+63.3s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/r832_00002_.png
+real 63.42
+user 0.07
+sys 0.02
+----- E_832 exit=0 end=00:04:38
+===== F_ns20a : 00:04:38
+model=animagine-xl-4.0.safetensors seed=101 steps=20 cfg=5.0 1024x1024 x4
+252.5s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20a_00001_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20a_00002_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20a_00003_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20a_00004_.png
+real 252.58
+user 0.13
+sys 0.06
+----- F_ns20a exit=0 end=00:08:51
+===== G_ns20b : 00:08:51
+model=animagine-xl-4.0.safetensors seed=202 steps=20 cfg=5.0 1024x1024 x4
+256.1s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20b_00001_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20b_00002_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20b_00003_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/ns20b_00004_.png
+real 256.26
+user 0.13
+sys 0.07
+----- G_ns20b exit=0 end=00:13:07
+===== H_s28 : 00:13:07
+model=animagine-xl-4.0.safetensors seed=101 steps=28 cfg=5.0 1024x1024 x2
+174.9s  →  /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/s28_00001_.png
+           /Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio/out/s28_00002_.png
+real 175.02
+user 0.11
+sys 0.06
+----- H_s28 exit=0 end=00:16:02
+ALL DONE 00:16:02
