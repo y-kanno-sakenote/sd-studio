@@ -20,6 +20,19 @@ python3 dev/sd-studio/gen.py "japanese sake bottle on wooden counter" -m photo
 
 出力は `out/` に落ちる（gitignore済み）。
 
+## GUIの使い方（ComfyUI）
+既定テンプレートはうちに無いモデルを読もうとしてエラーになる。**左の「ワークフロー」（Wキー）から `sd-studio_SDXL基本` を開く**こと。うちの構成専用に用意した最小構成（8ノード）で、開いてすぐ「実行する」が押せる。
+
+触るのは3か所だけ：
+| 場所 | 何 |
+|---|---|
+| 上のテキスト欄（プロンプト） | 描きたいもの。後ろの `masterpiece, high score...` は品質タグなので消さない |
+| KSampler の `シード` | `randomize` なら毎回違う絵。固定すると同じ絵が再現できる |
+| チェックポイントを読み込む の `ckpt_name` | `animagine`（イラスト）↔ `juggernautXL`（写実）の切替 |
+
+下のテキスト欄（ネガティブ）と `空の潜在画像` のサイズは、慣れるまで触らなくていい。
+実体は `workflows/sdxl_basic.json`（`~/ComfyUI/user/default/workflows/` にも配置済み）。
+
 ## モデル
 | プリセット | ckpt | 用途 |
 |---|---|---|
