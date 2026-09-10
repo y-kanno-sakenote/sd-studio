@@ -38,8 +38,28 @@ python3 dev/sd-studio/gen.py "japanese sake bottle on wooden counter" -m photo
 |---|---|---|
 | `illust`（既定） | animagine-xl-4.0 | アニメ・イラスト。カード絵、キャラ、ゲーム素材 |
 | `photo` | juggernautXL-v9 | 写実。酒瓶・料理・資料スライド用 |
+| （動画） | ltxv-2b-0.9.8-distilled ＋ t5xxl_fp16 | 下記「動画」参照。VAEはチェックポイント同梱 |
 
 VAE は `sdxl_vae.safetensors`（fp16-fix）を共通で使う。
+
+## 動画（LTXV）
+ワークフロー `sd-studio_LTXV動画` を開く（画像と同じく Wキー → 一覧から選ぶ）。出力は `.webm`（vp9）で `~/ComfyUI/output/` に落ちる。
+
+| 実測（M4 Pro 24GB） | 所要 |
+|---|---|
+| 512×320 / 25フレーム（1.0秒） | 81秒 |
+| 768×512 / 97フレーム（3.9秒） | 113秒 |
+
+どちらも全編で構図が安定し、破綻なし（フレームを抜いて目視確認済み）。
+
+**設定の決まりごと**（LTXV公式の制約）
+- 解像度は **32の倍数**、フレーム数は **8の倍数+1**（25, 33, 97 など）
+- 720×1280未満・257フレーム未満に収める
+- distilled版なので **steps=8 / cfg=1.0**。cfgを上げても良くならない
+
+**Wanは使わない**。ComfyUI Issue #15793 に、この機体と同一構成（Mac mini M4 Pro 24GB）で映像が溶ける報告がある。M3 Proでは出ずMPSカーネルのシリコン世代依存で、回避策なし。
+
+**注意**: 動画関連ノードは209個あるが、うち87個は ByteDance / Grok / Gemini / Runway 等の**外部API課金ノード**。ローカル生成は122個の方。うっかり課金ノードを繋がないこと。
 
 ## gen.py の主なオプション
 - `-m illust|photo` モデル切替
