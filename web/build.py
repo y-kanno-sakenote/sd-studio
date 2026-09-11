@@ -19,6 +19,8 @@ def collect():
         if f.stem.startswith("_"):
             continue
         g = _common.load(f.stem)
+        if not g.PUBLISH:      # テスト用などは公開版に載せない
+            continue
         data.append({
             "id": f.stem, "title": g.TITLE, "icon": g.ICON, "port": g.PORT,
             "example": getattr(g, "EXAMPLE", ""),

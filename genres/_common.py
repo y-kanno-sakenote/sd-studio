@@ -50,16 +50,51 @@ def fragment(entry, model):
     return illust
 
 
+# 書かなくてよいもの（書けば優先される）
+DEFAULTS = {
+    "ICON": "🎨", "EXAMPLE": "", "ALIASES": {},
+    "NO_HUMAN": (), "HUMAN_ONLY_CATS": (), "NO_HUMAN_MOTION": (),
+    "PUBLISH": True,   # False にすると公開版（docs/index.html）に載らない
+}
+
+
 def load(name):
-    """ジャンルモジュールを読み込み、共通のカメラ語彙を差し込んで返す。"""
+    """ジャンルモジュールを読み込み、足りないものを補って返す。
+
+    必ず書くのは TITLE / PORT / VOCAB の3つだけ。
+    ALWAYS と ROLL_CHANCE は省略すれば VOCAB から自動で作る。
+    """
     import importlib
     g = importlib.import_module(name)
+
+    for key in ("TITLE", "PORT", "VOCAB"):
+        if not hasattr(g, key):
+            raise ValueError(f"{name}.py に {key} が無い（TITLE・PORT・VOCAB は必須）")
+    for key, val in DEFAULTS.items():
+        if not hasattr(g, key):
+            setattr(g, key, val)
+
+    for cat, entries in g.VOCAB.items():
+        for e in entries:
+            if not (isinstance(e, (list, tuple)) and len(e) == 3):
+                raise ValueError(f"{name}.py の「{cat}」に3つ組でない項目がある: {e!r}"
+                                 "（日本語, イラスト用タグ, 写実用の語 or None）")
+
     if CAMERA_CAT not in g.VOCAB:
         g.VOCAB[CAMERA_CAT] = list(CAMERA)
-        g.ROLL_CHANCE[CAMERA_CAT] = CAMERA_CHANCE
-    missing = set(g.VOCAB) - set(g.ROLL_CHANCE)
+
+    cats = list(g.VOCAB)
+    if not hasattr(g, "ALWAYS"):
+        head = [c for c in cats if c not in VIDEO_ONLY][:2]
+        g.ALWAYS = {"illust": tuple(head), "photo": tuple(head),
+                    "video": tuple(head + ([MOTION_CAT] if MOTION_CAT in cats else []))}
+    if not hasattr(g, "ROLL_CHANCE"):
+        g.ROLL_CHANCE = {}
+    for i, c in enumerate(cats):
+        g.ROLL_CHANCE.setdefault(c, CAMERA_CHANCE if c == CAMERA_CAT
+                                 else 1.0 if i < 2 else 0.6)
+
     extra = set(g.ROLL_CHANCE) - set(g.VOCAB)
-    if missing or extra:
-        raise ValueError(f"{name}: ROLL_CHANCE と VOCAB のキーが不一致 "
-                         f"（不足={sorted(missing)} 余分={sorted(extra)}）")
+    if extra:
+        raise ValueError(f"{name}.py: ROLL_CHANCE に VOCAB に無いカテゴリがある: {sorted(extra)}")
     return g

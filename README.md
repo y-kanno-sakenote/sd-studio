@@ -106,7 +106,19 @@ dev/sd-studio/bin/prompt_studio.sh fantasy      # ファンタジー
 
 入口ページ `studios.html` は `bin/studios.sh` が毎回その場で組み立てる（ジャンルを足せば自動で並ぶ。手で編集しない）。
 
-ジャンルを足すには `genres/<名前>.py` を1本書くだけ（`TITLE` `ICON` `PORT` `VOCAB` `ALWAYS` `ROLL_CHANCE` `NO_HUMAN` `HUMAN_ONLY_CATS` `NO_HUMAN_MOTION`）。カメラの動き・品質タグ・ネガティブは `genres/_common.py` から自動で入るので書かない。コードは全ジャンル共通の1本。
+### 工房を1つ足す（3手）
+```bash
+cp genres/_template.py genres/<名前>.py     # 1. ひな形をコピー
+#    TITLE / PORT / VOCAB を書き換える（必須はこの3つだけ）
+bin/prompt_studio.sh <名前>                 # 2. 起動して触る
+python3 web/build.py                        # 3. 公開版に載せるならビルド（PUBLISH=True のとき）
+```
+`ALWAYS`（常時表示）と `ROLL_CHANCE`（おまかせ確率）は**省略すると自動で決まる**（先頭2カテゴリが常時表示・確率1.0、残りは0.6）。カメラの動き・品質タグ・ネガティブは `genres/_common.py` から自動で入る。コードは全ジャンル共通の1本。
+
+- **`PUBLISH = False`** にすると公開版（`docs/index.html`）に載らない。テスト用の工房はこれを使う
+- ファイル名が `_` で始まるものは工房として読み込まれない（`_template.py` `_common.py`）
+- ポートは他と重ならない番号にする（既存 8511〜8515、テスト 8520）
+- 一覧は `bin/prompt_studio.sh --list`
 日本語ラベルを選ぶと英語プロンプトが組み上がる。**モデルで出力が変わる**——イラスト側はDanbooruタグ列、写実側と動画側は自然な英文。ネガティブも連動する。
 
 モデルは3つ：`イラスト（animagine）` / `写実（juggernautXL）` / `動画（LTXV）`。
