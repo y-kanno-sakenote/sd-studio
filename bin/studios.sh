@@ -7,7 +7,9 @@ ROOT="/Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio"
 PY="/Users/ymacmini/Documents/claudecode@macmini/dev/jbsj/.venv/bin/python"
 
 if [ "$1" = "stop" ]; then
-  pkill -f "streamlit run.*prompt_studio" 2>/dev/null && echo "全ジャンル停止" || echo "動いているものは無かった"
+  # ポートで見つけて止める（プロセス名の pkill は取りこぼしがある）
+  PIDS=$(lsof -nP -tiTCP:8511,8512,8513,8514,8515 -sTCP:LISTEN 2>/dev/null || true)
+  [ -n "$PIDS" ] && kill $PIDS && echo "全ジャンル停止" || echo "動いているものは無かった"
   exit 0
 fi
 
@@ -32,10 +34,16 @@ while IFS=$'\t' read -r name port title icon; do
   fi
 done <<< "$GENRES"
 
+# Tailscale が動いていれば、入口のリンクをそのIPにする（このMacからも他端末からも同じURLで開ける）
+TSIP=$(/Applications/Tailscale.app/Contents/MacOS/Tailscale ip -4 2>/dev/null | head -1 || true)
+HOSTNAME_FOR_LINKS="${TSIP:-localhost}"
+[ -n "$TSIP" ] && echo "外部ブラウザから → http://$TSIP:8511 など（Tailscale に繋いだ端末だけ）"
+
 # 入口ページを、いま存在するジャンルから組み立てる
-"$PY" - "$ROOT" <<'PYEOF'
+"$PY" - "$ROOT" "$HOSTNAME_FOR_LINKS" <<'PYEOF'
 import sys, pathlib, html
-root = pathlib.Path(sys.argv[1]); sys.path.insert(0, str(root / "genres"))
+root = pathlib.Path(sys.argv[1]); host = sys.argv[2]
+sys.path.insert(0, str(root / "genres"))
 import _common
 cards = []
 for f in sorted((root / "genres").glob("*.py")):
@@ -46,7 +54,7 @@ for f in sorted((root / "genres").glob("*.py")):
     except Exception:
         continue
     n = sum(len(v) for v in g.VOCAB.values())
-    cards.append(f'''<a class="card" href="http://localhost:{g.PORT}" target="_blank">
+    cards.append(f'''<a class="card" href="http://{host}:{g.PORT}" target="_blank">
       <div class="icon">{g.ICON}</div>
       <div class="name">{html.escape(g.TITLE)}</div>
       <div class="meta">:{g.PORT} ・ 語彙{n}</div></a>''')
@@ -72,7 +80,7 @@ for f in sorted((root / "genres").glob("*.py")):
 <h1>プロンプト工房</h1>
 <p class="sub">日本語で選ぶと英語のプロンプトができる。ComfyUI のプロンプト欄に貼って使う。</p>
 <div class="grid">{"".join(cards)}</div>
-<p class="comfy">▸ <a href="http://127.0.0.1:8188" target="_blank">ComfyUI（生成する場所）</a></p>
+<p class="comfy">▸ <a href="http://{host}:8188" target="_blank">ComfyUI（生成する場所）</a><br><span style="color:#6d645d">ComfyUI を他端末から使うときは <code>bin/start.sh --remote</code> で起動する</span></p>
 ''', encoding="utf-8")
 print(f"入口ページ: {root/'studios.html'}")
 PYEOF

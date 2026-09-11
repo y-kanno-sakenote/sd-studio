@@ -145,6 +145,26 @@ Streamlit は jbsj の venv を間借りしている（蔵元司令室と同じ�
 
 `LTXV画像を動画に` の `strength` は**既定の1.0が上限**なので、画像を保つ力をこれ以上上げる手はない。長くしたいときは短いクリップを複数作って繋ぐ方が確実（未検証）。
 
+## 外部ブラウザから使う（iPhone・MacBook Air）
+Tailscale に繋いだ自分の端末だけから使える。**公開はしない**。
+
+```bash
+dev/sd-studio/bin/studios.sh          # 工房5つ（起動時にTailscaleのURLを表示）
+dev/sd-studio/bin/start.sh --remote   # ComfyUI も外から使うとき
+```
+
+| | localhost | Tailscale（自分の端末） | 同じWi-Fiの他人 |
+|---|---|---|---|
+| プロンプト工房 8511-8515 | ○ | ○ | ○ |
+| ComfyUI 8188（既定） | ○ | × | × |
+| ComfyUI 8188（`--remote`） | ○ | ○ | **×** |
+
+ComfyUI は `--listen 127.0.0.1,<TailscaleのIP>` で**その2つだけ**に開く。同じWi-Fiに繋いだ他人からは見えない。入口ページ `studios.html` のリンクも Tailscale のIPになるので、iPhone に送ればそのまま使える。
+
+**ComfyUI を公開してはいけない**。認証が無く、ファイルの読み書きとカスタムノードによるコード実行ができる。ポート開放・ngrok・Cloudflare Tunnel などで外に出さないこと。プロンプト工房の方は固定の語彙から文字列を組むだけなので危険は小さい。
+
+止めるときは `bin/studios.sh stop` / `bin/start.sh stop`。
+
 ## gen.py の主なオプション
 - `-m illust|photo` モデル切替
 - `-n 4` 枚数（バッチ）
