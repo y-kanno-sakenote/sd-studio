@@ -39,9 +39,6 @@ if c2.button("消す"):
     for cat in VOCAB:
         st.session_state[f"sel_{cat}"] = []
 
-if model == "video":
-    st.caption("動画は自然な英文で受ける（タグ列ではない）。「動き」＝被写体が何をするか、「カメラの動き」＝カメラがどう動くか。")
-
 st.divider()
 
 cats = [c for c in VOCAB if model == "video" or c not in VIDEO_ONLY]

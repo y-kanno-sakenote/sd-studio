@@ -129,7 +129,7 @@ VOCAB = {
     ("霧", "fog, misty", "in thick fog"),
     ("晴天", "clear sky, sunny", "on a clear sunny day"),
 ],
-"動き": [
+"主役の動き": [
     ("ほとんど動かない", None, "almost still, only subtle movement"),
     ("ゆっくり歩く", None, "walking slowly forward"),
     ("振り返る", None, "turning to look back"),
@@ -148,17 +148,16 @@ VOCAB = {
     ("盃を口へ運ぶ", None, "raising a cup to the lips"),
 ],
 "カメラの動き": [
-    ("動かさない（固定）", None, "static camera, locked-off shot"),
+    ("動かさない", None, "static camera, locked-off shot"),
     ("ゆっくり右へ振る", None, "the camera slowly pans right"),
     ("ゆっくり左へ振る", None, "the camera slowly pans left"),
     ("ゆっくり寄る", None, "the camera slowly pushes in"),
     ("ゆっくり引く", None, "the camera slowly pulls back"),
-    ("上へ振り上げる", None, "the camera tilts up"),
-    ("下へ振り下ろす", None, "the camera tilts down"),
+    ("ゆっくり上へ振る", None, "the camera tilts up"),
+    ("ゆっくり下へ振る", None, "the camera tilts down"),
     ("被写体を追う", None, "the camera tracks the subject"),
     ("回り込む", None, "the camera slowly orbits around the subject"),
-    ("手持ち風に揺れる", None, "handheld camera with a slight natural shake"),
-    ("すべるように進む", None, "a smooth dolly shot moving forward"),
+    ("手持ちで揺れる", None, "handheld camera with a slight natural shake"),
 ],
 }
 
@@ -183,13 +182,13 @@ NEGATIVE = {
 }
 
 # 動画のときだけ出すカテゴリ
-VIDEO_ONLY = ("動き", "カメラの動き")
+VIDEO_ONLY = ("主役の動き", "カメラの動き")
 
 # 常時表示するカテゴリ（残りは「もっと選ぶ」に畳む）
 ALWAYS = {
     "illust": ("主役", "場所"),
     "photo": ("主役", "場所"),
-    "video": ("主役", "場所", "動き", "カメラの動き"),
+    "video": ("主役", "場所", "主役の動き"),
 }
 
 # 「おまかせ」で振るときの、カテゴリごとの採用確率
@@ -197,7 +196,7 @@ ROLL_CHANCE = {
     "主役": 1.0, "場所": 1.0, "光": 0.9, "画風": 0.8,
     "しぐさ": 0.7, "服装": 0.6, "構図": 0.6,
     "小道具": 0.5, "季節・天気": 0.4,
-    "動き": 1.0, "カメラの動き": 0.9,
+    "主役の動き": 1.0, "カメラの動き": 0.9,
 }
 
 
