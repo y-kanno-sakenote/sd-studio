@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-"""日本語ラベル → 英語プロンプト断片の対応表。
+"""醸造・日本酒ジャンルの語彙。酒蔵の情景と道具を厚めに持つ。"""
 
-各項目は (日本語, イラスト用タグ, 写実用の語) の3つ組。
-3つめが None ならイラスト用をそのまま使う。
-イラスト用は Danbooru 系タグ（animagine）、写実用は自然な描写語（juggernaut）。
-"""
+TITLE = "醸造・日本酒"
+ICON = "🍶"
+PORT = 8511
 
 VOCAB = {
 "主役": [
@@ -147,38 +146,18 @@ VOCAB = {
     ("葉が舞う", None, "leaves drifting through the air"),
     ("盃を口へ運ぶ", None, "raising a cup to the lips"),
 ],
-"カメラの動き": [
-    ("動かさない", None, "static camera, locked-off shot"),
-    ("ゆっくり右へ振る", None, "the camera slowly pans right"),
-    ("ゆっくり左へ振る", None, "the camera slowly pans left"),
-    ("ゆっくり寄る", None, "the camera slowly pushes in"),
-    ("ゆっくり引く", None, "the camera slowly pulls back"),
-    ("ゆっくり上へ振る", None, "the camera tilts up"),
-    ("ゆっくり下へ振る", None, "the camera tilts down"),
-    ("被写体を追う", None, "the camera tracks the subject"),
-    ("回り込む", None, "the camera slowly orbits around the subject"),
-    ("手持ちで揺れる", None, "handheld camera with a slight natural shake"),
-],
 }
 
-# 品質タグ（末尾に付ける）
-QUALITY = {
-    "illust": "masterpiece, high score, great score, absurdres",
-    "photo": "photorealistic, highly detailed, natural lighting, 8k uhd",
-    "video": "cinematic, smooth natural motion, highly detailed",
+ALWAYS = {
+    "illust": ("主役", "場所"),
+    "photo": ("主役", "場所"),
+    "video": ("主役", "場所", "主役の動き"),
 }
 
-# ネガティブ（gen.py のプリセットと揃えてある）
-NEGATIVE = {
-    "illust": ("nsfw, nude, nipples, cleavage, revealing clothes, underwear, "
-               "lowres, bad anatomy, bad hands, text, error, missing finger, "
-               "extra digits, fewer digits, cropped, worst quality, low quality, "
-               "low score, bad score, average score, signature, watermark, username, blurry"),
-    "photo": ("cartoon, anime, illustration, painting, drawing, cgi, 3d render, "
-              "worst quality, low quality, blurry, jpeg artifacts, watermark, text, "
-              "deformed, bad anatomy, extra limbs"),
-    "video": ("worst quality, blurry, jittery, distorted, flickering, warping, "
-              "morphing, watermark, text, static image, frozen"),
+ROLL_CHANCE = {
+    "主役": 1.0, "場所": 1.0, "光": 0.9, "画風": 0.8,
+    "しぐさ": 0.7, "服装": 0.6, "構図": 0.6,
+    "小道具": 0.5, "季節・天気": 0.4, "主役の動き": 1.0,
 }
 
 # 主役が「人物なし」のとき、服装や表情を足すと矛盾する
@@ -186,29 +165,3 @@ NO_HUMAN = ("人物なし（風景）", "酒器だけ")
 HUMAN_ONLY_CATS = ("服装", "しぐさ")
 NO_HUMAN_MOTION = ("ほとんど動かない", "湯気が立ちのぼる", "酒が注がれる", "泡が弾ける",
                    "暖簾が風に揺れる", "提灯が揺れる", "火が揺らめく", "雪が降る", "葉が舞う")
-
-# 動画のときだけ出すカテゴリ
-VIDEO_ONLY = ("主役の動き", "カメラの動き")
-
-# 常時表示するカテゴリ（残りは「もっと選ぶ」に畳む）
-ALWAYS = {
-    "illust": ("主役", "場所"),
-    "photo": ("主役", "場所"),
-    "video": ("主役", "場所", "主役の動き"),
-}
-
-# 「おまかせ」で振るときの、カテゴリごとの採用確率
-ROLL_CHANCE = {
-    "主役": 1.0, "場所": 1.0, "光": 0.9, "画風": 0.8,
-    "しぐさ": 0.7, "服装": 0.6, "構図": 0.6,
-    "小道具": 0.5, "季節・天気": 0.4,
-    "主役の動き": 1.0, "カメラの動き": 0.9,
-}
-
-
-def fragment(entry, model):
-    """(日本語, イラスト用, 写実用) から、モデルに応じた英語断片を返す。"""
-    jp, illust, photo = entry
-    if model in ("photo", "video"):
-        return photo if photo else illust
-    return illust

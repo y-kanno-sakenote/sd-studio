@@ -1,27 +1,40 @@
 # -*- coding: utf-8 -*-
 """プロンプト工房 — 日本語で選ぶと英語プロンプトが組み上がる。
 
-  dev/sd-studio/bin/prompt_studio.sh   （http://localhost:8511）
+  dev/sd-studio/bin/prompt_studio.sh <ジャンル>
 
+ジャンルごとに別ポート・別プロセスで動く。語彙は genres/<ジャンル>.py。
 出てきた文字列をComfyUIのプロンプト欄に貼る。生成はしない。
 """
+import os
 import random
 import sys
 import pathlib
 
 import streamlit as st
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "prompts"))
-from vocab import (VOCAB, QUALITY, NEGATIVE, ROLL_CHANCE, VIDEO_ONLY,  # noqa: E402
-                   ALWAYS, NO_HUMAN, HUMAN_ONLY_CATS, NO_HUMAN_MOTION, fragment)
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "genres"))
+import _common  # noqa: E402
+from _common import QUALITY, NEGATIVE, VIDEO_ONLY, fragment  # noqa: E402
 
-st.set_page_config(page_title="プロンプト工房", page_icon="🍶", layout="wide")
+GENRE = os.environ.get("SD_STUDIO_GENRE", "brewing")
+try:
+    g = _common.load(GENRE)
+except Exception as e:  # 語彙ファイルの不備は起動時にはっきり出す
+    st.error(f"ジャンル『{GENRE}』を読み込めない: {e}")
+    st.stop()
+
+VOCAB, ALWAYS, ROLL_CHANCE = g.VOCAB, g.ALWAYS, g.ROLL_CHANCE
+NO_HUMAN, HUMAN_ONLY_CATS = g.NO_HUMAN, g.HUMAN_ONLY_CATS
+NO_HUMAN_MOTION = g.NO_HUMAN_MOTION
+
+st.set_page_config(page_title=f"プロンプト工房 — {g.TITLE}", page_icon=g.ICON, layout="wide")
 
 MODELS = {"イラスト（animagine）": "illust",
           "写実（juggernautXL）": "photo",
           "動画（LTXV）": "video"}
 
-st.title("🍶 プロンプト工房")
+st.title(f"{g.ICON} プロンプト工房　{g.TITLE}")
 st.caption("日本語で選ぶと英語のプロンプトができる。ComfyUI のプロンプト欄に貼って使う。")
 
 label = st.radio("モデル", list(MODELS), horizontal=True)

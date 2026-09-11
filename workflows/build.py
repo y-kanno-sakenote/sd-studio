@@ -9,8 +9,8 @@
 import json, pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "prompts"))
-from vocab import NEGATIVE  # noqa: E402
+sys.path.insert(0, str(ROOT / "genres"))
+from _common import NEGATIVE  # noqa: E402
 
 OUT = [pathlib.Path.home() / "ComfyUI/user/default/workflows", ROOT / "workflows"]
 
