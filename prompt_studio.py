@@ -66,30 +66,44 @@ with st.expander(head):
         with cols[i % 3]:
             pick(cat)
 
-# --- 組み立て ---
-parts = []
-for cat in cats:
-    for jp in picked[cat]:
-        entry = next(e for e in VOCAB[cat] if e[0] == jp)
-        parts.append(fragment(entry, model))
-
 st.divider()
 free = st.text_input("自由に足す", "", help="英語で。カンマ区切り")
 add_quality = st.checkbox("画質の指定を足す", value=True)
 
-if free.strip():
-    parts.append(free.strip())
-if add_quality:
-    parts.append(QUALITY[model])
 
-prompt = ", ".join(p for p in parts if p)
+def compose(m, target_cats):
+    parts = [fragment(next(e for e in VOCAB[c] if e[0] == jp), m)
+             for c in target_cats for jp in picked.get(c, [])]
+    if free.strip():
+        parts.append(free.strip())
+    if add_quality:
+        parts.append(QUALITY[m])
+    return ", ".join(p for p in parts if p)
 
-st.subheader("プロンプト")
-if prompt:
-    st.code(prompt, language=None)
+
+def show(title, body, note=None):
+    st.subheader(title)
+    if note:
+        st.caption(note)
+    if body:
+        st.code(body, language=None)
+    else:
+        st.info("上から選ぶか「おまかせ」を押す")
+
+
+if model == "video":
+    # 動画は「情景＋動き」で書くのが最良（実測）。その情景と揃った静止画用も同時に出す。
+    show("動画用", compose("video", cats), "`3_動画` か `4_静止画から動画` のプロンプト欄に貼る")
+    still_cats = [c for c in cats if c not in VIDEO_ONLY]
+    show("元になる静止画用", compose("illust", still_cats),
+         "`4_静止画から動画` を使うときだけ。まず `1_イラスト` でこれを貼って1枚描き、"
+         "その絵を4に渡す。情景が揃うので動画側が絵を保ちやすい")
+    with st.expander("ネガティブ（毎回同じ。一度貼れば済む）"):
+        st.caption("動画用")
+        st.code(NEGATIVE["video"], language=None)
+        st.caption("静止画用")
+        st.code(NEGATIVE["illust"], language=None)
 else:
-    st.info("上から選ぶか「おまかせ」を押す")
-
-# ネガティブは選んだ内容で変わらない。要るときだけ開く
-with st.expander("ネガティブ（毎回同じ。一度貼れば済む）"):
-    st.code(NEGATIVE[model], language=None)
+    show("プロンプト", compose(model, cats))
+    with st.expander("ネガティブ（毎回同じ。一度貼れば済む）"):
+        st.code(NEGATIVE[model], language=None)
