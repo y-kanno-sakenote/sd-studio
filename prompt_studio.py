@@ -13,7 +13,7 @@ import streamlit as st
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "prompts"))
 from vocab import (VOCAB, QUALITY, NEGATIVE, ROLL_CHANCE, VIDEO_ONLY,  # noqa: E402
-                   ALWAYS, fragment)
+                   ALWAYS, NO_HUMAN, HUMAN_ONLY_CATS, NO_HUMAN_MOTION, fragment)
 
 st.set_page_config(page_title="プロンプト工房", page_icon="🍶", layout="wide")
 
@@ -29,12 +29,24 @@ model = MODELS[label]
 
 c1, c2, _ = st.columns([1, 1, 4])
 if c1.button("🎲 おまかせ", use_container_width=True):
+    subject = random.choice(VOCAB["主役"])[0]
+    no_human = subject in NO_HUMAN
     for cat, entries in VOCAB.items():
         if cat in VIDEO_ONLY and model != "video":
             st.session_state[f"sel_{cat}"] = []
             continue
+        if cat == "主役":
+            st.session_state["sel_主役"] = [subject]
+            continue
+        # 人物がいない絵に服装や表情を足さない
+        if no_human and cat in HUMAN_ONLY_CATS:
+            st.session_state[f"sel_{cat}"] = []
+            continue
+        pool = entries
+        if no_human and cat == "主役の動き":
+            pool = [e for e in entries if e[0] in NO_HUMAN_MOTION]
         hit = random.random() < ROLL_CHANCE.get(cat, 0.5)
-        st.session_state[f"sel_{cat}"] = [random.choice(entries)[0]] if hit else []
+        st.session_state[f"sel_{cat}"] = [random.choice(pool)[0]] if hit and pool else []
 if c2.button("消す"):
     for cat in VOCAB:
         st.session_state[f"sel_{cat}"] = []
@@ -72,32 +84,36 @@ add_quality = st.checkbox("画質の指定を足す", value=True)
 
 
 def compose(m, target_cats):
+    """選択が何も無ければ空を返す（画質タグだけのプロンプトは出さない）。"""
     parts = [fragment(next(e for e in VOCAB[c] if e[0] == jp), m)
              for c in target_cats for jp in picked.get(c, [])]
     if free.strip():
         parts.append(free.strip())
+    if not parts:
+        return ""
     if add_quality:
         parts.append(QUALITY[m])
     return ", ".join(p for p in parts if p)
 
 
-def show(title, body, note=None):
+def show(title, body, note=None, placeholder=True):
     st.subheader(title)
     if note:
         st.caption(note)
     if body:
         st.code(body, language=None)
-    else:
+    elif placeholder:
         st.info("上から選ぶか「おまかせ」を押す")
 
 
 if model == "video":
     # 動画は「情景＋動き」で書くのが最良（実測）。その情景と揃った静止画用も同時に出す。
-    show("動画用", compose("video", cats), "`3_動画` か `4_静止画から動画` のプロンプト欄に貼る")
+    show("動画用", compose("video", cats), "`3_動画` か `4_静止画から動画` に貼る")
     still_cats = [c for c in cats if c not in VIDEO_ONLY]
-    show("元になる静止画用", compose("illust", still_cats),
-         "`4_静止画から動画` を使うときだけ。まず `1_イラスト` でこれを貼って1枚描き、"
-         "その絵を4に渡す。情景が揃うので動画側が絵を保ちやすい")
+    still = compose("illust", still_cats)
+    if still:
+        show("元の静止画用（`4_静止画から動画` を使うときだけ）", still,
+             "`1_イラスト` で1枚描いて、その絵を `4` に渡す", placeholder=False)
     with st.expander("ネガティブ（毎回同じ。一度貼れば済む）"):
         st.caption("動画用")
         st.code(NEGATIVE["video"], language=None)
