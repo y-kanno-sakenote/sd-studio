@@ -15,6 +15,8 @@ import streamlit as st
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "genres"))
 import _common  # noqa: E402
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from matcher import match as match_words  # noqa: E402
 from _common import QUALITY, NEGATIVE, VIDEO_ONLY, fragment  # noqa: E402
 
 GENRE = os.environ.get("SD_STUDIO_GENRE", "brewing")
@@ -40,6 +42,24 @@ st.caption("日本語で選ぶと英語のプロンプトができる。ComfyUI 
 label = st.radio("モデル", list(MODELS), horizontal=True)
 model = MODELS[label]
 
+# 文章で書いて、そこから語彙を拾う。拾った結果は下の選択欄に入るので、あとから直せる。
+f1, f2 = st.columns([5, 1])
+sentence = f1.text_input("文章で書く", "", label_visibility="collapsed",
+                         placeholder=getattr(g, "EXAMPLE", "作りたい絵を文章で書く"))
+picked_empty = False
+if f2.button("言葉を拾う", use_container_width=True):
+    if sentence.strip():
+        found = match_words(sentence, VOCAB)
+        for cat in VOCAB:
+            st.session_state[f"sel_{cat}"] = found.get(cat, [])
+        picked_empty = not found
+    else:
+        # text_input は Enter を押すまで値が渡らない。黙って空振りさせない。
+        st.warning("文章を入れて **Enter** を押してから「言葉を拾う」")
+
+if picked_empty:
+    st.info("拾える言葉が無かった。下から直接選ぶか、別の言い方で書いてみる")
+
 c1, c2, _ = st.columns([1, 1, 4])
 if c1.button("🎲 おまかせ", use_container_width=True):
     subject = random.choice(VOCAB["主役"])[0]
@@ -63,6 +83,7 @@ if c1.button("🎲 おまかせ", use_container_width=True):
 if c2.button("消す"):
     for cat in VOCAB:
         st.session_state[f"sel_{cat}"] = []
+    st.session_state["_picked_from"] = None
 
 st.divider()
 
