@@ -83,9 +83,16 @@ VAE は `sdxl_vae.safetensors`（fp16-fix）を共通で使う。
 
 ## プロンプト工房（日本語でプロンプトを組む）
 **ジャンルごとに別ポート・別プロセス**で動く。同時に立ち上げてよい。
+
+**入口はこれ1本**。全ジャンルを起動して、カード一覧のページを開く（動いているものはそのまま）。
+```bash
+dev/sd-studio/bin/studios.sh
+```
+止めるときは `bin/studios.sh stop`。
+
+1つだけ立てたいときは個別に：
 ```bash
 dev/sd-studio/bin/prompt_studio.sh --list       # 一覧
-dev/sd-studio/bin/prompt_studio.sh              # 醸造・日本酒（既定）
 dev/sd-studio/bin/prompt_studio.sh fantasy      # ファンタジー
 ```
 
@@ -96,6 +103,8 @@ dev/sd-studio/bin/prompt_studio.sh fantasy      # ファンタジー
 | `landscape` 風景・自然 | 8513 | 129 |
 | `food` 料理・食べもの | 8514 | 124 |
 | `portrait` 人物・ポートレート | 8515 | 150 |
+
+入口ページ `studios.html` は `bin/studios.sh` が毎回その場で組み立てる（ジャンルを足せば自動で並ぶ。手で編集しない）。
 
 ジャンルを足すには `genres/<名前>.py` を1本書くだけ（`TITLE` `ICON` `PORT` `VOCAB` `ALWAYS` `ROLL_CHANCE` `NO_HUMAN` `HUMAN_ONLY_CATS` `NO_HUMAN_MOTION`）。カメラの動き・品質タグ・ネガティブは `genres/_common.py` から自動で入るので書かない。コードは全ジャンル共通の1本。
 日本語ラベルを選ぶと英語プロンプトが組み上がる。**モデルで出力が変わる**——イラスト側はDanbooruタグ列、写実側と動画側は自然な英文。ネガティブも連動する。
