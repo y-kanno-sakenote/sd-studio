@@ -161,6 +161,22 @@ Streamlit は jbsj の venv を間借りしている（蔵元司令室と同じ�
 
 `LTXV画像を動画に` の `strength` は**既定の1.0が上限**なので、画像を保つ力をこれ以上上げる手はない。長くしたいときは短いクリップを複数作って繋ぐ方が確実（未検証）。
 
+## 公開版（静的・誰でも・どの端末でも）
+**https://y-kanno-sakenote.github.io/sd-studio/**
+
+`docs/index.html` 1枚だけ。サーバー不要でブラウザ内で完結する。5ジャンルをタブで切り替える形（ローカル版のような別ポートではない）。
+```bash
+python3 web/build.py    # genres/*.py から docs/index.html を作り直す
+```
+**語彙の正本は `genres/*.py` のまま**。静的版は毎回そこから生成するので、語彙を直したら `web/build.py` を実行して push する。`docs/index.html` は手で編集しない。
+
+- 検索避け（`noindex,nofollow`）を入れてある。リンクを知っている人だけが開く想定
+- リポジトリは **public**（GitHub Pages の無料利用に必要）。コードと語彙は誰でも見られる
+- **ComfyUI も Streamlit も公開していない**。公開版はプロンプト文字列を出すだけで、生成機能は持たない
+- 入力した文章はブラウザの外に出ない（通信しない）
+
+ローカルのStreamlit版はそのまま残る。用途が違う（手元＝ComfyUIの隣で使う／公開版＝外出先や他のAIに貼る）。
+
 ## 外部ブラウザから使う（iPhone・MacBook Air）
 Tailscale に繋いだ自分の端末だけから使える。**公開はしない**。
 
