@@ -3,7 +3,7 @@
 
   python3 workflows/build.py
 
-ネガティブは prompts/vocab.py から引く（プロンプト工房と同じ定義を使い、二重管理しない）。
+ネガティブは genres/_common.py から引く（プロンプト工房と同じ定義を使い、二重管理しない）。
 出力先は ~/ComfyUI/user/default/workflows/ と このフォルダの両方。
 """
 import json, pathlib, sys

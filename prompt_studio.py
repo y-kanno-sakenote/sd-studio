@@ -96,6 +96,23 @@ free = st.text_input("自由に足す", "", help="英語で。カンマ区切り
 add_quality = st.checkbox("画質の指定を足す", value=True)
 
 
+def dedupe(parts, token_level):
+    """重複を落とす。タグ列は語単位、英文は断片単位で見る。
+
+    語彙どうしが同じ語を含むことは避けられない（風景の多くが scenery を持つ等）。
+    重ねるとSDXLでその語の重みが不当に上がるので、組み立て時に1回だけにする。
+    """
+    seen, out = set(), []
+    for p in parts:
+        for piece in (p.split(",") if token_level else [p]):
+            piece = piece.strip()
+            key = piece.lower()
+            if piece and key not in seen:
+                seen.add(key)
+                out.append(piece)
+    return out
+
+
 def compose(m, target_cats):
     """選択が何も無ければ空を返す（画質タグだけのプロンプトは出さない）。"""
     parts = [fragment(next(e for e in VOCAB[c] if e[0] == jp), m)
@@ -106,7 +123,7 @@ def compose(m, target_cats):
         return ""
     if add_quality:
         parts.append(QUALITY[m])
-    return ", ".join(p for p in parts if p)
+    return ", ".join(dedupe([p for p in parts if p], token_level=(m == "illust")))
 
 
 def show(title, body, note=None, placeholder=True):
