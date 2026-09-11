@@ -2,3 +2,5 @@ out/
 *.png
 *.jpg
 studios.html
+__pycache__/
+*.pyc
