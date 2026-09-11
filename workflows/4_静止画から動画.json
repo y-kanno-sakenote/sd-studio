@@ -1,6 +1,6 @@
 {
- "last_node_id": 9,
- "last_link_id": 11,
+ "last_node_id": 10,
+ "last_link_id": 15,
  "nodes": [
   {
    "id": 1,
@@ -36,7 +36,8 @@
      "name": "VAE",
      "type": "VAE",
      "links": [
-      2
+      2,
+      3
      ],
      "slot_index": 2
     }
@@ -68,8 +69,8 @@
      "name": "CLIP",
      "type": "CLIP",
      "links": [
-      3,
-      4
+      4,
+      5
      ],
      "slot_index": 0
     }
@@ -87,52 +88,14 @@
    "type": "CLIPTextEncode",
    "pos": [
     480,
-    80
+    60
    ],
    "size": [
     430,
-    190
+    170
    ],
    "flags": {},
    "order": 2,
-   "mode": 0,
-   "inputs": [
-    {
-     "name": "clip",
-     "type": "CLIP",
-     "link": 3
-    }
-   ],
-   "outputs": [
-    {
-     "name": "CONDITIONING",
-     "type": "CONDITIONING",
-     "links": [
-      5
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "CLIPTextEncode"
-   },
-   "widgets_values": [
-    "a slow pan across a traditional japanese sake brewery, wooden barrels, steam rising, warm morning light"
-   ]
-  },
-  {
-   "id": 4,
-   "type": "CLIPTextEncode",
-   "pos": [
-    480,
-    310
-   ],
-   "size": [
-    430,
-    160
-   ],
-   "flags": {},
-   "order": 3,
    "mode": 0,
    "inputs": [
     {
@@ -155,33 +118,120 @@
     "Node name for S&R": "CLIPTextEncode"
    },
    "widgets_values": [
-    "worst quality, blurry, jittery, distorted, static, watermark, text"
+    "anime style, cel shaded, 1girl in kimono walking through a japanese sake brewery, warm lantern light, cinematic, smooth natural motion, highly detailed"
+   ]
+  },
+  {
+   "id": 4,
+   "type": "CLIPTextEncode",
+   "pos": [
+    480,
+    270
+   ],
+   "size": [
+    430,
+    140
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 5
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "worst quality, blurry, jittery, distorted, flickering, warping, morphing, watermark, text, static image, frozen"
    ]
   },
   {
    "id": 5,
-   "type": "LTXVConditioning",
+   "type": "LoadImage",
    "pos": [
-    480,
-    520
+    40,
+    560
    ],
    "size": [
-    330,
-    82
+    390,
+    340
    ],
    "flags": {},
    "order": 4,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "sample_anime_still.png",
+    "image"
+   ]
+  },
+  {
+   "id": 6,
+   "type": "LTXVImgToVideo",
+   "pos": [
+    960,
+    460
+   ],
+   "size": [
+    340,
+    180
+   ],
+   "flags": {},
+   "order": 5,
    "mode": 0,
    "inputs": [
     {
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 5
+     "link": 6
     },
     {
      "name": "negative",
      "type": "CONDITIONING",
-     "link": 6
+     "link": 7
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 2
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 8
     }
    ],
    "outputs": [
@@ -189,7 +239,7 @@
      "name": "positive",
      "type": "CONDITIONING",
      "links": [
-      7
+      9
      ],
      "slot_index": 0
     },
@@ -197,7 +247,70 @@
      "name": "negative",
      "type": "CONDITIONING",
      "links": [
-      8
+      10
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "latent",
+     "type": "LATENT",
+     "links": [
+      11
+     ],
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LTXVImgToVideo"
+   },
+   "widgets_values": [
+    768,
+    512,
+    33,
+    1,
+    1.0
+   ]
+  },
+  {
+   "id": 7,
+   "type": "LTXVConditioning",
+   "pos": [
+    960,
+    300
+   ],
+   "size": [
+    330,
+    82
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 9
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 10
+    }
+   ],
+   "outputs": [
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "links": [
+      12
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "links": [
+      13
      ],
      "slot_index": 1
     }
@@ -210,45 +323,10 @@
    ]
   },
   {
-   "id": 6,
-   "type": "EmptyLTXVLatentVideo",
-   "pos": [
-    480,
-    650
-   ],
-   "size": [
-    330,
-    130
-   ],
-   "flags": {},
-   "order": 5,
-   "mode": 0,
-   "inputs": [],
-   "outputs": [
-    {
-     "name": "LATENT",
-     "type": "LATENT",
-     "links": [
-      9
-     ],
-     "slot_index": 0
-    }
-   ],
-   "properties": {
-    "Node name for S&R": "EmptyLTXVLatentVideo"
-   },
-   "widgets_values": [
-    768,
-    512,
-    97,
-    1
-   ]
-  },
-  {
-   "id": 7,
+   "id": 8,
    "type": "KSampler",
    "pos": [
-    960,
+    1360,
     240
    ],
    "size": [
@@ -256,7 +334,7 @@
     262
    ],
    "flags": {},
-   "order": 6,
+   "order": 7,
    "mode": 0,
    "inputs": [
     {
@@ -267,17 +345,17 @@
     {
      "name": "positive",
      "type": "CONDITIONING",
-     "link": 7
+     "link": 12
     },
     {
      "name": "negative",
      "type": "CONDITIONING",
-     "link": 8
+     "link": 13
     },
     {
      "name": "latent_image",
      "type": "LATENT",
-     "link": 9
+     "link": 11
     }
    ],
    "outputs": [
@@ -285,7 +363,7 @@
      "name": "LATENT",
      "type": "LATENT",
      "links": [
-      10
+      14
      ],
      "slot_index": 0
     }
@@ -304,10 +382,10 @@
    ]
   },
   {
-   "id": 8,
+   "id": 9,
    "type": "VAEDecode",
    "pos": [
-    1340,
+    1740,
     240
    ],
    "size": [
@@ -315,18 +393,18 @@
     46
    ],
    "flags": {},
-   "order": 7,
+   "order": 8,
    "mode": 0,
    "inputs": [
     {
      "name": "samples",
      "type": "LATENT",
-     "link": 10
+     "link": 14
     },
     {
      "name": "vae",
      "type": "VAE",
-     "link": 2
+     "link": 3
     }
    ],
    "outputs": [
@@ -334,7 +412,7 @@
      "name": "IMAGE",
      "type": "IMAGE",
      "links": [
-      11
+      15
      ],
      "slot_index": 0
     }
@@ -345,10 +423,10 @@
    "widgets_values": []
   },
   {
-   "id": 9,
+   "id": 10,
    "type": "SaveWEBM",
    "pos": [
-    1340,
+    1740,
     330
    ],
    "size": [
@@ -356,13 +434,13 @@
     200
    ],
    "flags": {},
-   "order": 8,
+   "order": 9,
    "mode": 0,
    "inputs": [
     {
      "name": "images",
      "type": "IMAGE",
-     "link": 11
+     "link": 15
     }
    ],
    "outputs": [],
@@ -370,7 +448,7 @@
     "Node name for S&R": "SaveWEBM"
    },
    "widgets_values": [
-    "ltxv",
+    "video_anime",
     "vp9",
     25.0,
     32.0
@@ -382,7 +460,7 @@
    1,
    1,
    0,
-   7,
+   8,
    0,
    "MODEL"
   ],
@@ -390,12 +468,20 @@
    2,
    1,
    2,
-   8,
-   1,
+   6,
+   2,
    "VAE"
   ],
   [
    3,
+   1,
+   2,
+   9,
+   1,
+   "VAE"
+  ],
+  [
+   4,
    2,
    0,
    3,
@@ -403,66 +489,90 @@
    "CLIP"
   ],
   [
-   4,
+   5,
    2,
    0,
    4,
    0,
    "CLIP"
-  ],
-  [
-   5,
-   3,
-   0,
-   5,
-   0,
-   "CONDITIONING"
   ],
   [
    6,
-   4,
+   3,
    0,
-   5,
-   1,
+   6,
+   0,
    "CONDITIONING"
   ],
   [
    7,
-   5,
+   4,
    0,
-   7,
+   6,
    1,
    "CONDITIONING"
   ],
   [
    8,
    5,
-   1,
-   7,
-   2,
-   "CONDITIONING"
+   0,
+   6,
+   3,
+   "IMAGE"
   ],
   [
    9,
    6,
    0,
    7,
-   3,
-   "LATENT"
+   0,
+   "CONDITIONING"
   ],
   [
    10,
+   6,
+   1,
+   7,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   6,
+   2,
+   8,
+   3,
+   "LATENT"
+  ],
+  [
+   12,
    7,
    0,
    8,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   13,
+   7,
+   1,
+   8,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   14,
+   8,
+   0,
+   9,
    0,
    "LATENT"
   ],
   [
-   11,
-   8,
-   0,
+   15,
    9,
+   0,
+   10,
    0,
    "IMAGE"
   ]
