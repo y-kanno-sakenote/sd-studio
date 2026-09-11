@@ -16,7 +16,7 @@ import streamlit as st
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "genres"))
 import _common  # noqa: E402
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from matcher import match as match_words  # noqa: E402
+from matcher import match as match_words, unmatched  # noqa: E402
 from _common import QUALITY, NEGATIVE, VIDEO_ONLY, fragment  # noqa: E402
 
 GENRE = os.environ.get("SD_STUDIO_GENRE", "brewing")
@@ -53,12 +53,23 @@ if f2.button("言葉を拾う", use_container_width=True):
         for cat in VOCAB:
             st.session_state[f"sel_{cat}"] = found.get(cat, [])
         picked_empty = not found
+        chosen = [lab for labs in found.values() for lab in labs]
+        st.session_state["_missed"] = unmatched(
+            sentence, VOCAB, getattr(g, "ALIASES", None), chosen)
     else:
         # text_input は Enter を押すまで値が渡らない。黙って空振りさせない。
         st.warning("文章を入れて **Enter** を押してから「言葉を拾う」")
 
 if picked_empty:
     st.info("拾える言葉が無かった。下から直接選ぶか、別の言い方で書いてみる")
+
+missing, overridden = st.session_state.get("_missed") or ([], [])
+if overridden:
+    st.warning("**" + "、".join(overridden) + "** は語彙にあるが選ばれなかった"
+               "（同じ枠で別の候補が勝った）。下の選択欄で直せる")
+if missing:
+    st.caption("語彙に無い言葉：" + "、".join(missing)
+               + f"　— 要るなら genres/{GENRE}.py に足す")
 
 c1, c2, _ = st.columns([1, 1, 4])
 if c1.button("🎲 おまかせ", use_container_width=True):
