@@ -77,26 +77,35 @@ def _keys(label):
     return keys
 
 
-def match(text, vocab, per_category=1, min_len=1):
-    """{カテゴリ: [選ばれた日本語ラベル]} を返す。拾えなければそのカテゴリは空。"""
+def match(text, vocab, aliases=None, per_category=2, min_len=1):
+    """{カテゴリ: [選ばれた日本語ラベル]} を返す。拾えなければそのカテゴリは空。
+
+    aliases は {正式ラベル: (言い換え, ...)}。言い換えは照合にだけ使い、
+    出来上がるプロンプトには一切出ない（＝出力を変えずに拾える率だけ上げられる）。
+    同じカテゴリで同点の候補が並んだら per_category 件まで採る。
+    """
     t = _norm(text)
     if not t.strip():
         return {}
+    aliases = aliases or {}
     out = {}
     for cat, entries in vocab.items():
         scored = []
         for entry in entries:
             label = entry[0]
+            keys = set(_keys(label))
+            for alt in aliases.get(label, ()):
+                keys |= _keys(alt)
             best = 0
-            covered = 0
-            for k in _keys(label):
+            for k in keys:
                 if len(k) >= min_len and k in t:
                     best = max(best, len(k))
-                    covered = max(covered, len(k))
             if best:
                 # 一致した長さが第一。同点ならラベル全体に占める割合が高い方（=より的確）
-                scored.append((best, covered / max(len(_norm(label)), 1), label))
+                scored.append((best, best / max(len(_norm(label)), 1), label))
         if scored:
             scored.sort(reverse=True)
-            out[cat] = [lab for _, _, lab in scored[:per_category]]
+            top = scored[0][0]
+            # 最高点に並んだものだけ複数採る（弱い候補で水増ししない）
+            out[cat] = [lab for sc, _, lab in scored[:per_category] if sc == top]
     return out

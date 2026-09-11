@@ -49,7 +49,7 @@ sentence = f1.text_input("文章で書く", "", label_visibility="collapsed",
 picked_empty = False
 if f2.button("言葉を拾う", use_container_width=True):
     if sentence.strip():
-        found = match_words(sentence, VOCAB)
+        found = match_words(sentence, VOCAB, getattr(g, "ALIASES", None))
         for cat in VOCAB:
             st.session_state[f"sel_{cat}"] = found.get(cat, [])
         picked_empty = not found

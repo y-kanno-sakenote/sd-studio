@@ -18,8 +18,8 @@ VOCAB = {
     ("中性的な人物", "1other, solo, androgynous", "an androgynous person"),
     ("褐色肌の女性", "1girl, solo, dark skin, dark-skinned female", "a woman with deep brown skin"),
     ("褐色肌の男性", "1boy, solo, dark skin, dark-skinned male", "a man with deep brown skin"),
-    ("眼鏡の知的な人物", "1girl, solo, glasses", "a studious-looking person wearing glasses"),
-    ("がっしりした体格の人", "1boy, solo, muscular male", "a broad-shouldered, powerfully built person"),
+    ("眼鏡の知的な女性", "1girl, solo, glasses", "a studious-looking person wearing glasses"),
+    ("がっしりした体格の男性", "1boy, solo, muscular male", "a broad-shouldered, powerfully built person"),
     ("ふたり並んで", "2people, two people side by side", "two people standing side by side"),
     ("向かい合うふたり", "2people, facing each other", "two people facing each other"),
     ("小さな集団", "multiple people, group of people", "a small group of people"),
@@ -191,3 +191,9 @@ ROLL_CHANCE = {
 NO_HUMAN = ()
 HUMAN_ONLY_CATS = ()
 NO_HUMAN_MOTION = ()
+
+# 照合にだけ使う言い換え。プロンプトには出ない。
+ALIASES = {
+    "眼鏡の知的な女性": ("メガネ", "めがね"),
+    "細い縁の眼鏡": ("メガネ", "めがね"),
+}
