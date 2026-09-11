@@ -300,11 +300,14 @@ $("pick").onclick=()=>{
 };
 $("sentence").addEventListener("keydown", e=>{ if(e.key==="Enter") $("pick").click(); });
 $("roll").onclick=()=>{
-  const subs=G.vocab["主役"]; const subject=subs[Math.floor(Math.random()*subs.length)][0];
+  // 「主役」が無い工房もあるので先頭カテゴリで代用する
+  const subjectCat = G.vocab["主役"] ? "主役" : catsFor().find(c=>!G.videoOnly.includes(c));
+  if(!subjectCat) return;
+  const subs=G.vocab[subjectCat]; const subject=subs[Math.floor(Math.random()*subs.length)][0];
   const noHuman=G.noHuman.includes(subject);
-  SEL={"主役":[subject]};
+  SEL={}; SEL[subjectCat]=[subject];
   for(const cat of catsFor()){
-    if(cat==="主役") continue;
+    if(cat===subjectCat) continue;
     if(noHuman && G.humanOnlyCats.includes(cat)) continue;
     let pool=G.vocab[cat];
     if(noHuman && cat==="主役の動き") pool=pool.filter(e=>G.noHumanMotion.includes(e[0]));

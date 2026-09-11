@@ -73,14 +73,17 @@ if missing:
 
 c1, c2, _ = st.columns([1, 1, 4])
 if c1.button("🎲 おまかせ", use_container_width=True):
-    subject = random.choice(VOCAB["主役"])[0]
+    # 「主役」が無い工房（表から取り込んだものなど）もあるので先頭カテゴリで代用する
+    subject_cat = "主役" if "主役" in VOCAB else next(
+        (c for c in VOCAB if c not in VIDEO_ONLY), None)
+    subject = random.choice(VOCAB[subject_cat])[0] if subject_cat else None
     no_human = subject in NO_HUMAN
     for cat, entries in VOCAB.items():
         if cat in VIDEO_ONLY and model != "video":
             st.session_state[f"sel_{cat}"] = []
             continue
-        if cat == "主役":
-            st.session_state["sel_主役"] = [subject]
+        if cat == subject_cat:
+            st.session_state[f"sel_{cat}"] = [subject]
             continue
         # 人物がいない絵に服装や表情を足さない
         if no_human and cat in HUMAN_ONLY_CATS:
