@@ -129,12 +129,44 @@ VOCAB = {
     ("霧", "fog, misty", "in thick fog"),
     ("晴天", "clear sky, sunny", "on a clear sunny day"),
 ],
+"動き": [
+    ("ほとんど動かない", None, "almost still, only subtle movement"),
+    ("ゆっくり歩く", None, "walking slowly forward"),
+    ("振り返る", None, "turning to look back"),
+    ("うなずく", None, "nodding slowly"),
+    ("櫂で混ぜる", None, "stirring the mash with a long wooden paddle"),
+    ("手元で作業する", None, "hands working carefully"),
+    ("湯気が立ちのぼる", None, "steam rising and curling upward"),
+    ("酒が注がれる", None, "sake being poured into a cup"),
+    ("泡が弾ける", None, "bubbles rising and popping on the surface"),
+    ("暖簾が風に揺れる", None, "a cloth curtain swaying in the breeze"),
+    ("提灯が揺れる", None, "paper lanterns swaying gently"),
+    ("火が揺らめく", None, "flames flickering"),
+    ("髪が風に揺れる", None, "hair moving in the breeze"),
+    ("雪が降る", None, "snow falling gently"),
+    ("葉が舞う", None, "leaves drifting through the air"),
+    ("盃を口へ運ぶ", None, "raising a cup to the lips"),
+],
+"カメラの動き": [
+    ("動かさない（固定）", None, "static camera, locked-off shot"),
+    ("ゆっくり右へ振る", None, "the camera slowly pans right"),
+    ("ゆっくり左へ振る", None, "the camera slowly pans left"),
+    ("ゆっくり寄る", None, "the camera slowly pushes in"),
+    ("ゆっくり引く", None, "the camera slowly pulls back"),
+    ("上へ振り上げる", None, "the camera tilts up"),
+    ("下へ振り下ろす", None, "the camera tilts down"),
+    ("被写体を追う", None, "the camera tracks the subject"),
+    ("回り込む", None, "the camera slowly orbits around the subject"),
+    ("手持ち風に揺れる", None, "handheld camera with a slight natural shake"),
+    ("すべるように進む", None, "a smooth dolly shot moving forward"),
+],
 }
 
 # 品質タグ（末尾に付ける）
 QUALITY = {
     "illust": "masterpiece, high score, great score, absurdres",
     "photo": "photorealistic, highly detailed, natural lighting, 8k uhd",
+    "video": "cinematic, smooth natural motion, highly detailed",
 }
 
 # ネガティブ（gen.py のプリセットと揃えてある）
@@ -146,6 +178,18 @@ NEGATIVE = {
     "photo": ("cartoon, anime, illustration, painting, drawing, cgi, 3d render, "
               "worst quality, low quality, blurry, jpeg artifacts, watermark, text, "
               "deformed, bad anatomy, extra limbs"),
+    "video": ("worst quality, blurry, jittery, distorted, flickering, warping, "
+              "morphing, watermark, text, static image, frozen"),
+}
+
+# 動画のときだけ出すカテゴリ
+VIDEO_ONLY = ("動き", "カメラの動き")
+
+# 常時表示するカテゴリ（残りは「もっと選ぶ」に畳む）
+ALWAYS = {
+    "illust": ("主役", "場所"),
+    "photo": ("主役", "場所"),
+    "video": ("主役", "場所", "動き", "カメラの動き"),
 }
 
 # 「おまかせ」で振るときの、カテゴリごとの採用確率
@@ -153,12 +197,13 @@ ROLL_CHANCE = {
     "主役": 1.0, "場所": 1.0, "光": 0.9, "画風": 0.8,
     "しぐさ": 0.7, "服装": 0.6, "構図": 0.6,
     "小道具": 0.5, "季節・天気": 0.4,
+    "動き": 1.0, "カメラの動き": 0.9,
 }
 
 
 def fragment(entry, model):
     """(日本語, イラスト用, 写実用) から、モデルに応じた英語断片を返す。"""
     jp, illust, photo = entry
-    if model == "photo":
+    if model in ("photo", "video"):
         return photo if photo else illust
     return illust
