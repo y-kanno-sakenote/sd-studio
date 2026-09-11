@@ -174,6 +174,7 @@ python3 web/build.py    # genres/*.py から docs/index.html を作り直す
 - リポジトリは **public**（GitHub Pages の無料利用に必要）。コードと語彙は誰でも見られる
 - **ComfyUI も Streamlit も公開していない**。公開版はプロンプト文字列を出すだけで、生成機能は持たない
 - 入力した文章はブラウザの外に出ない（通信しない）
+- ページ下部に「手元で使う」（折りたたみ）があり、Streamlit版5つとComfyUIへのリンクが並ぶ。**localhost 宛てなのでこのMacでしか通じない**（Tailscale の IP は公開ページに書かない）
 
 ローカルのStreamlit版はそのまま残る。用途が違う（手元＝ComfyUIの隣で使う／公開版＝外出先や他のAIに貼る）。
 

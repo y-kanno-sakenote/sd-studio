@@ -20,7 +20,7 @@ def collect():
             continue
         g = _common.load(f.stem)
         data.append({
-            "id": f.stem, "title": g.TITLE, "icon": g.ICON,
+            "id": f.stem, "title": g.TITLE, "icon": g.ICON, "port": g.PORT,
             "example": getattr(g, "EXAMPLE", ""),
             "vocab": {c: [[e[0], e[1], e[2]] for e in v] for c, v in g.VOCAB.items()},
             "always": {k: list(v) for k, v in g.ALWAYS.items()},
@@ -96,6 +96,11 @@ footer{margin-top:34px;font-size:12px;color:#6d645d}
 <label class="ck"><input type="checkbox" id="quality" checked> 画質の指定を足す</label>
 <hr>
 <div id="out"></div>
+<details id="local"><summary>手元で使う（このMacでのみ通じる）</summary>
+  <div class="row" id="localLinks"></div>
+  <div class="note">ComfyUI と Streamlit 版は公開していない。上のリンクはこのMacで起動しているときだけ開く。<br>
+  起動は <code>bin/studios.sh</code>（工房5つ）/ <code>bin/start.sh</code>（ComfyUI）。</div>
+</details>
 <footer>文章も選択も、この端末の外には出ない（すべてブラウザ内で処理）。<br>
 語彙 __COUNT__ 語 / __GENRES__ ジャンル</footer>
 </div>
@@ -308,6 +313,22 @@ $("roll").onclick=()=>{
 };
 $("clear").onclick=()=>{ SEL={}; MSG=null; $("sentence").value=""; render(); };
 $("quality").onchange=renderOut;
+
+// 手元のStreamlit版とComfyUIへのリンク（localhost。他の端末では開かない）
+(function(){
+  const box=$("localLinks");
+  for(const g of DATA.genres){
+    const a=document.createElement("a");
+    a.className="chip small"; a.href="http://localhost:"+g.port; a.target="_blank";
+    a.textContent=g.icon+" "+g.title; a.style.textDecoration="none";
+    box.appendChild(a);
+  }
+  const c=document.createElement("a");
+  c.className="chip small"; c.href="http://127.0.0.1:8188"; c.target="_blank";
+  c.textContent="🖼 ComfyUI"; c.style.textDecoration="none";
+  box.appendChild(c);
+})();
+
 render();
 </script>
 </html>
