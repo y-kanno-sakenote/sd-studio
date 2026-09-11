@@ -118,7 +118,7 @@
     "Node name for S&R": "CLIPTextEncode"
    },
    "widgets_values": [
-    "anime style, cel shaded, 1girl in kimono walking through a japanese sake brewery, warm lantern light, cinematic, smooth natural motion, highly detailed"
+    "anime style, cel shaded, 1girl in kimono in a japanese sake brewery, warm lantern light, she walks slowly forward, her kimono sways gently, the camera slowly pushes in"
    ]
   },
   {
@@ -266,7 +266,7 @@
    "widgets_values": [
     768,
     512,
-    33,
+    17,
     1,
     1.0
    ]

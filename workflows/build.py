@@ -123,7 +123,7 @@ def video_i2v(name, pos_text):
                      ("vae", "VAE", 2), ("image", "IMAGE", 8)],
              outputs=[("positive", "CONDITIONING", [9]), ("negative", "CONDITIONING", [10]),
                       ("latent", "LATENT", [11])],
-             widgets=[768, 512, 33, 1, 1.0]),
+             widgets=[768, 512, 17, 1, 1.0]),
         node(7, "LTXVConditioning", (960, 300), (330, 82),
              inputs=[("positive", "CONDITIONING", 9), ("negative", "CONDITIONING", 10)],
              outputs=[("positive", "CONDITIONING", [12]), ("negative", "CONDITIONING", [13])],
@@ -161,6 +161,9 @@ if __name__ == "__main__":
     video_t2v("3_動画", "a slow pan across a traditional japanese sake brewery, wooden barrels, "
                         "steam rising and curling upward, warm morning light, "
                         "cinematic, smooth natural motion, highly detailed")
-    video_i2v("4_静止画から動画", "anime style, cel shaded, 1girl in kimono walking through a "
-                                  "japanese sake brewery, warm lantern light, "
-                                  "cinematic, smooth natural motion, highly detailed")
+    video_i2v("4_静止画から動画",
+              # 絵の内容（情景）＋ 動き の順に書く。動きだけだと絵が離れていく（実測）
+              "anime style, cel shaded, 1girl in kimono in a japanese sake brewery, "
+              "warm lantern light, "
+              "she walks slowly forward, her kimono sways gently, "
+              "the camera slowly pushes in")
