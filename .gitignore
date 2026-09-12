@@ -4,3 +4,5 @@ out/
 studios.html
 __pycache__/
 *.pyc
+.DS_Store
+genres/test.py

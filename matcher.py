@@ -91,7 +91,7 @@ def match(text, vocab, aliases=None, per_category=2, min_len=1):
     out = {}
     for cat, entries in vocab.items():
         scored = []
-        for entry in entries:
+        for idx, entry in enumerate(entries):
             label = entry[0]
             keys = set(_keys(label))
             for alt in aliases.get(label, ()):
@@ -101,13 +101,14 @@ def match(text, vocab, aliases=None, per_category=2, min_len=1):
                 if len(k) >= min_len and k in t:
                     best = max(best, len(k))
             if best:
-                # 一致した長さが第一。同点ならラベル全体に占める割合が高い方（=より的確）
-                scored.append((best, best / max(len(_norm(label)), 1), label))
+                # 一致した長さが第一。同点ならラベル全体に占める割合が高い方（=より的確）。
+                # それも同じなら語彙で先に書いた方（＝書いた順が優先順）
+                scored.append((best, best / max(len(_norm(label)), 1), -idx, label))
         if scored:
             scored.sort(reverse=True)
             top = scored[0][0]
             # 最高点に並んだものだけ複数採る（弱い候補で水増ししない）
-            out[cat] = [lab for sc, _, lab in scored[:per_category] if sc == top]
+            out[cat] = [lab for sc, _, _, lab in scored[:per_category] if sc == top]
     return out
 
 

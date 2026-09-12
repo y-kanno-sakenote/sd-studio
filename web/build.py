@@ -102,6 +102,12 @@ footer{margin-top:34px;font-size:12px;color:#6d645d}
   <div class="row" id="localLinks"></div>
   <div class="note">ComfyUI と Streamlit 版は公開していない。上のリンクはこのMacで起動しているときだけ開く。<br>
   起動は <code>bin/studios.sh</code>（工房5つ）/ <code>bin/start.sh</code>（ComfyUI）。</div>
+  <div class="note" style="margin-top:14px">手元の入口ページ（全工房のカード一覧）。
+  <b>ブラウザは https のページから file:// へ移動できない</b>ので、下をコピーしてアドレス欄に貼る。</div>
+  <div class="outwrap" style="margin-top:6px">
+    <pre id="hubpath">__HUB__</pre>
+    <button class="copy" style="top:8px" id="hubcopy">コピー</button>
+  </div>
 </details>
 <footer>文章も選択も、この端末の外には出ない（すべてブラウザ内で処理）。<br>
 語彙 __COUNT__ 語 / __GENRES__ ジャンル</footer>
@@ -152,15 +158,16 @@ function matchWords(text, vocab, aliases, perCat=2){
   if(!t.trim()) return out;
   for(const [cat, entries] of Object.entries(vocab)){
     const scored=[];
-    for(const e of entries){
+    entries.forEach((e,idx)=>{
       let best=0;
       for(const k of allKeys(e[0], aliases)) if(k.length>=1 && t.includes(k)) best=Math.max(best,k.length);
-      if(best) scored.push([best, best/Math.max(norm(e[0]).length,1), e[0]]);
-    }
+      if(best) scored.push([best, best/Math.max(norm(e[0]).length,1), -idx, e[0]]);
+    });
     if(scored.length){
-      scored.sort((a,b)=> b[0]-a[0] || b[1]-a[1]);
+      // 長さ → 占める割合 → 語彙で先に書いた順
+      scored.sort((a,b)=> b[0]-a[0] || b[1]-a[1] || b[2]-a[2]);
       const top=scored[0][0];
-      out[cat]=scored.slice(0,perCat).filter(x=>x[0]===top).map(x=>x[2]);
+      out[cat]=scored.slice(0,perCat).filter(x=>x[0]===top).map(x=>x[3]);
     }
   }
   return out;
@@ -321,6 +328,9 @@ $("quality").onchange=renderOut;
 
 // 手元のStreamlit版とComfyUIへのリンク（localhost。他の端末では開かない）
 (function(){
+  const hb=$("hubcopy");
+  if(hb) hb.onclick=()=>{ navigator.clipboard.writeText($("hubpath").textContent.trim());
+    hb.textContent="コピーした"; setTimeout(()=>hb.textContent="コピー",1200); };
   const box=$("localLinks");
   for(const g of DATA.genres){
     const a=document.createElement("a");
@@ -343,6 +353,8 @@ if __name__ == "__main__":
     data = collect()
     n = sum(len(v) for g in data["genres"] for v in g["vocab"].values())
     html = (HTML.replace("__DATA__", json.dumps(data, ensure_ascii=False))
+                .replace("__HUB__", "file:///Users/ymacmini/Documents/claudecode@macmini/"
+                                    "dev/sd-studio/studios.html")
                 .replace("__COUNT__", str(n))
                 .replace("__GENRES__", str(len(data["genres"]))))
     OUT.parent.mkdir(parents=True, exist_ok=True)

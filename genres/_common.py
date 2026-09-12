@@ -98,3 +98,78 @@ def load(name):
     if extra:
         raise ValueError(f"{name}.py: ROLL_CHANCE に VOCAB に無いカテゴリがある: {sorted(extra)}")
     return g
+
+
+# ── キャラ固定 ──────────────────────────────────────
+# 名前から顔の特徴とシードを決定的に決める。同じ名前なら毎回同じ組み合わせになる。
+# 文字だけで顔を完全に固定することはできない（同一にしたいならLoRAやIPAdapterの領分）。
+# ここでできるのは「似た顔に寄せる」ところまで。
+FACE_TRAITS = [
+    ("目の形", [
+        "almond-shaped eyes", "round eyes", "narrow eyes", "downturned eyes",
+        "upturned eyes", "wide-set eyes", "hooded eyes", "large expressive eyes",
+    ]),
+    ("目の色", [
+        "dark brown eyes", "light brown eyes", "hazel eyes", "grey eyes",
+        "green eyes", "blue eyes", "amber eyes", "deep black eyes",
+    ]),
+    ("眉", [
+        "straight eyebrows", "arched eyebrows", "thick eyebrows",
+        "thin eyebrows", "softly tapered eyebrows", "slightly angled eyebrows",
+    ]),
+    ("鼻", [
+        "small straight nose", "slightly upturned nose", "narrow nose bridge",
+        "rounded nose tip", "defined nose bridge", "petite nose",
+    ]),
+    ("唇", [
+        "full lips", "thin lips", "cupid's bow lips", "soft rounded lips",
+        "wide mouth", "small mouth",
+    ]),
+    ("輪郭", [
+        "oval face", "round face", "heart-shaped face", "square jawline",
+        "soft jawline", "high cheekbones",
+    ]),
+    ("肌の印象", [
+        "clear smooth skin", "light freckles across the nose", "rosy cheeks",
+        "matte skin texture", "a small beauty mark under one eye",
+        "a small beauty mark near the lips", "natural skin texture",
+    ]),
+]
+
+
+def _fnv1a(text):
+    """32bitのFNV-1a。JS側と同じ値になるようにしてある（環境差で顔が変わらないため）。"""
+    h = 0x811c9dc5
+    for ch in text.encode("utf-8"):
+        h ^= ch
+        h = (h * 0x01000193) & 0xFFFFFFFF
+    return h
+
+
+def _xorshift32(seed):
+    """名前1つから乱数列を作る。単に連番を混ぜるとFNVでは値が等間隔にしか動かず、
+    どの名前でも同じ並びの特徴が選ばれてしまうため、ここで撹拌する。JS側と同じ実装。"""
+    x = seed & 0xFFFFFFFF or 0x9E3779B9
+
+    def nxt():
+        nonlocal x
+        x ^= (x << 13) & 0xFFFFFFFF
+        x ^= x >> 17
+        x ^= (x << 5) & 0xFFFFFFFF
+        x &= 0xFFFFFFFF
+        return x
+    return nxt
+
+
+def character(name):
+    """キャラ名から {traits: [...], text: "...", seed: n} を返す。同じ名前なら毎回同じ。"""
+    name = (name or "").strip()
+    if not name:
+        return None
+    nxt = _xorshift32(_fnv1a(name))
+    traits = [(label, pool[nxt() % len(pool)]) for label, pool in FACE_TRAITS]
+    return {
+        "traits": traits,
+        "text": ", ".join(v for _, v in traits),
+        "seed": nxt() % 2**31,
+    }

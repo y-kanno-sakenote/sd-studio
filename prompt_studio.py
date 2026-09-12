@@ -17,7 +17,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "genres"))
 import _common  # noqa: E402
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from matcher import match as match_words, unmatched  # noqa: E402
-from _common import QUALITY, NEGATIVE, VIDEO_ONLY, fragment  # noqa: E402
+from _common import QUALITY, NEGATIVE, VIDEO_ONLY, fragment, character  # noqa: E402
 
 GENRE = os.environ.get("SD_STUDIO_GENRE", "brewing")
 try:
@@ -73,13 +73,16 @@ if missing:
 
 c1, c2, _ = st.columns([1, 1, 4])
 if c1.button("🎲 おまかせ", use_container_width=True):
-    # 「主役」が無い工房（表から取り込んだものなど）もあるので先頭カテゴリで代用する
-    subject_cat = "主役" if "主役" in VOCAB else next(
-        (c for c in VOCAB if c not in VIDEO_ONLY), None)
+    # 使う要素だけを対象にする。「主役」が無い工房もあるので先頭カテゴリで代用する
+    usable = [c for c in VOCAB
+              if st.session_state.get(f"use_{c}", True)
+              and (model == "video" or c not in VIDEO_ONLY)]
+    subject_cat = "主役" if "主役" in usable else next(
+        (c for c in usable if c not in VIDEO_ONLY), None)
     subject = random.choice(VOCAB[subject_cat])[0] if subject_cat else None
     no_human = subject in NO_HUMAN
     for cat, entries in VOCAB.items():
-        if cat in VIDEO_ONLY and model != "video":
+        if cat not in usable:
             st.session_state[f"sel_{cat}"] = []
             continue
         if cat == subject_cat:
@@ -101,7 +104,36 @@ if c2.button("消す"):
 
 st.divider()
 
-cats = [c for c in VOCAB if model == "video" or c not in VIDEO_ONLY]
+def panel(key, label):
+    """開閉を自分で覚えるパネル。st.expander は中を操作するたびに閉じてしまうため。"""
+    st.session_state.setdefault(key, False)
+    mark = "▼" if st.session_state[key] else "▶"
+    if st.button(f"{mark}　{label}", key=f"btn_{key}", use_container_width=True):
+        st.session_state[key] = not st.session_state[key]
+    return st.session_state[key]
+
+
+all_cats = [c for c in VOCAB if model == "video" or c not in VIDEO_ONLY]
+on = [c for c in all_cats if st.session_state.get(f"use_{c}", True)]
+
+if panel("panel_use", f"使う要素（{len(on)}/{len(all_cats)}）"):
+    b1, b2, _ = st.columns([1, 1, 4])
+    if b1.button("全部使う", use_container_width=True):
+        for c in all_cats:
+            st.session_state[f"use_{c}"] = True
+        st.rerun()
+    if b2.button("最小限", use_container_width=True, help="常時表示の要素だけ残す"):
+        keep = set(ALWAYS.get(model, ()))
+        for c in all_cats:
+            st.session_state[f"use_{c}"] = c in keep
+        st.rerun()
+    st.caption("外したものは選択欄にもおまかせにも出ない")
+    ccols = st.columns(3)
+    for i, c in enumerate(all_cats):
+        with ccols[i % 3]:
+            st.checkbox(f"{c}（{len(VOCAB[c])}）", key=f"use_{c}", value=True)
+
+cats = [c for c in all_cats if st.session_state.get(f"use_{c}", True)]
 MAIN = [c for c in ALWAYS.get(model, ()) if c in cats]  # 語彙側が変わっても壊れないように
 rest = [c for c in cats if c not in MAIN]
 picked = {}
@@ -120,7 +152,7 @@ for i, cat in enumerate(MAIN):
 # 畳んだ中身が効いていることは、見出しに選んだ名前を並べて伝える
 chosen = [v for c in rest for v in st.session_state.get(f"sel_{c}", [])]
 head = "もっと選ぶ" + ("　" + "、".join(chosen) if chosen else "")
-with st.expander(head):
+if panel("panel_more", head):
     cols = st.columns(3)
     for i, cat in enumerate(rest):
         with cols[i % 3]:
@@ -128,7 +160,11 @@ with st.expander(head):
 
 st.divider()
 free = st.text_input("自由に足す", "", help="英語で。カンマ区切り")
-add_quality = st.checkbox("画質の指定を足す", value=True)
+q1, q2 = st.columns([1, 2])
+add_quality = q1.checkbox("画質の指定を足す", value=True)
+chara = q2.text_input("キャラ名（同じ名前なら同じ顔に寄る）", "",
+                      placeholder="さくら", label_visibility="collapsed")
+CH = character(chara)
 
 
 def dedupe(parts, token_level):
@@ -152,6 +188,8 @@ def compose(m, target_cats):
     """選択が何も無ければ空を返す（画質タグだけのプロンプトは出さない）。"""
     parts = [fragment(next(e for e in VOCAB[c] if e[0] == jp), m)
              for c in target_cats for jp in picked.get(c, [])]
+    if CH:
+        parts.append(CH["text"])
     if free.strip():
         parts.append(free.strip())
     if not parts:
@@ -170,6 +208,11 @@ def show(title, body, note=None, placeholder=True):
     elif placeholder:
         st.info("上から選ぶか「おまかせ」を押す")
 
+
+if CH:
+    st.caption(f"**{chara.strip()}** の顔 ─ " +
+               "／".join(f"{k}:{v}" for k, v in CH["traits"]) +
+               f"　｜　**シード {CH['seed']}**（KSamplerのシードにこれを入れると近い顔が戻る）")
 
 if model == "video":
     # 動画は「情景＋動き」で書くのが最良（実測）。その情景と揃った静止画用も同時に出す。
