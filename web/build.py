@@ -23,7 +23,7 @@ def collect():
             continue
         data.append({
             "id": f.stem, "title": g.TITLE, "icon": g.ICON, "port": g.PORT,
-            "example": getattr(g, "EXAMPLE", ""),
+            "example": getattr(g, "EXAMPLE", ""), "base": getattr(g, "BASE", {}),
             "vocab": {c: [[e[0], e[1], e[2]] for e in v] for c, v in g.VOCAB.items()},
             "always": {k: list(v) for k, v in g.ALWAYS.items()},
             "roll": g.ROLL_CHANCE,
@@ -244,6 +244,7 @@ function compose(m, cats){
     const e=G.vocab[c].find(x=>x[0]===jp); if(e) ps.push(frag(e,m));
   }
   if(!ps.length) return "";
+  const base=(G.base||{})[m]; if(base) ps.unshift(base);
   if($("quality").checked) ps.push(DATA.quality[m]);
   return dedupe(ps.filter(Boolean), m==="illust").join(", ");
 }

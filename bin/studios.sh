@@ -43,6 +43,8 @@ HOSTNAME_FOR_LINKS="${TSIP:-localhost}"
 "$PY" - "$ROOT" "$HOSTNAME_FOR_LINKS" <<'PYEOF'
 import sys, pathlib, html
 root = pathlib.Path(sys.argv[1]); host = sys.argv[2]
+saved = root / "saved"
+saved.mkdir(parents=True, exist_ok=True)
 sys.path.insert(0, str(root / "genres"))
 import _common
 cards = []
@@ -81,6 +83,7 @@ for f in sorted((root / "genres").glob("*.py")):
 <p class="sub">日本語で選ぶと英語のプロンプトができる。ComfyUI のプロンプト欄に貼って使う。</p>
 <div class="grid">{"".join(cards)}</div>
 <p class="comfy">▸ <a href="http://{host}:8188" target="_blank">ComfyUI（生成する場所）</a><br><span style="color:#6d645d">ComfyUI を他端末から使うときは <code>bin/start.sh --remote</code> で起動する</span></p>
+<p class="comfy">▸ <a href="file://{saved}">保存したプロンプト（savedフォルダ）</a><br><span style="color:#6d645d">工房ごとに1ファイル。このMacの中だけ・gitにも公開版にも出ない</span></p>
 ''', encoding="utf-8")
 print(f"入口ページ: {root/'studios.html'}")
 PYEOF

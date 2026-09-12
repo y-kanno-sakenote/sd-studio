@@ -52,6 +52,10 @@ def fragment(entry, model):
 
 # 書かなくてよいもの（書けば優先される）
 DEFAULTS = {
+    # BASE … そのジャンルで毎回いちばん前に入る基礎プロンプト（モデル別）。
+    #         例: {"illust": "...", "photo": "...", "video": "..."}
+    #         「画質の指定を足す」のチェックとは無関係に常に入る。
+    "BASE": {},
     "ICON": "🎨", "EXAMPLE": "", "ALIASES": {},
     "NO_HUMAN": (), "HUMAN_ONLY_CATS": (), "NO_HUMAN_MOTION": (),
     "PUBLISH": True,   # False にすると公開版（docs/index.html）に載らない
