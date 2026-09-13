@@ -8,7 +8,17 @@ PY="/Users/ymacmini/Documents/claudecode@macmini/dev/jbsj/.venv/bin/python"
 
 if [ "$1" = "stop" ]; then
   # ポートで見つけて止める（プロセス名の pkill は取りこぼしがある）
-  PIDS=$(lsof -nP -tiTCP:8511,8512,8513,8514,8515 -sTCP:LISTEN 2>/dev/null || true)
+  PORTS=$("$PY" -c "
+import sys,pathlib; sys.path.insert(0,'$ROOT/genres')
+import _common
+ps=[]
+for f in sorted(pathlib.Path('$ROOT/genres').glob('*.py')):
+    if f.stem.startswith('_'): continue
+    try: ps.append(str(_common.load(f.stem).PORT))
+    except Exception: pass
+print(','.join(ps))
+")
+  PIDS=$(lsof -nP -tiTCP:"${PORTS:-8511}" -sTCP:LISTEN 2>/dev/null || true)
   [ -n "$PIDS" ] && kill $PIDS && echo "全ジャンル停止" || echo "動いているものは無かった"
   exit 0
 fi

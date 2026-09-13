@@ -70,6 +70,9 @@ def load(name):
     """
     import importlib
     g = importlib.import_module(name)
+    # 語彙ファイルを直したら、ブラウザの再読み込みだけで反映させる。
+    # import はキャッシュされるので、明示的に読み直さないと古いまま出続ける。
+    g = importlib.reload(g)
 
     for key in ("TITLE", "PORT", "VOCAB"):
         if not hasattr(g, key):

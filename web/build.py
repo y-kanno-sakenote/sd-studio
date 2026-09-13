@@ -153,7 +153,7 @@ function allKeys(label, aliases){
   for(const alt of (aliases[label]||[])) for(const k of K(alt)) s.add(k);
   return s;
 }
-function matchWords(text, vocab, aliases, perCat=2){
+function matchWords(text, vocab, aliases, perCat=1){
   const t=norm(text); const out={};
   if(!t.trim()) return out;
   for(const [cat, entries] of Object.entries(vocab)){
@@ -168,6 +168,8 @@ function matchWords(text, vocab, aliases, perCat=2){
       scored.sort((a,b)=> b[0]-a[0] || b[1]-a[1] || b[2]-a[2]);
       const top=scored[0][0];
       out[cat]=scored.slice(0,perCat).filter(x=>x[0]===top).map(x=>x[3]);
+      const rest=scored.slice(perCat).filter(x=>x[0]===top).map(x=>x[3]);
+      if(rest.length) (out.__ties=out.__ties||{})[cat]=rest;
     }
   }
   return out;
@@ -245,7 +247,12 @@ function compose(m, cats){
   }
   if(!ps.length) return "";
   const base=(G.base||{})[m]; if(base) ps.unshift(base);
-  if($("quality").checked) ps.push(DATA.quality[m]);
+  if($("quality").checked){
+    let q=DATA.quality[m];
+    if(base){ const seen=new Set(base.split(",").map(x=>x.trim().toLowerCase()));
+      q=q.split(",").map(x=>x.trim()).filter(x=>!seen.has(x.toLowerCase())).join(", "); }
+    if(q) ps.push(q);
+  }
   return dedupe(ps.filter(Boolean), m==="illust").join(", ");
 }
 function block(title,body,note){
@@ -300,10 +307,12 @@ $("pick").onclick=()=>{
   const t=$("sentence").value.trim();
   if(!t){ MSG=null; render(); return; }
   const found=matchWords(t, G.vocab, G.aliases);
+  const ties=found.__ties||{}; delete found.__ties;
   SEL={}; for(const [c,v] of Object.entries(found)) if(catsFor().includes(c)) SEL[c]=v;
   const chosen=Object.values(SEL).flat();
   const [missing, over]=unmatched(t, G.vocab, G.aliases, chosen);
-  MSG={missing, over, none: !chosen.length};
+  const tied=Object.values(ties).flat();
+  MSG={missing, over: over.concat(tied), none: !chosen.length};
   render();
 };
 $("sentence").addEventListener("keydown", e=>{ if(e.key==="Enter") $("pick").click(); });

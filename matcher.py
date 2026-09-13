@@ -77,7 +77,7 @@ def _keys(label):
     return keys
 
 
-def match(text, vocab, aliases=None, per_category=2, min_len=1):
+def match(text, vocab, aliases=None, per_category=1, min_len=1):
     """{カテゴリ: [選ばれた日本語ラベル]} を返す。拾えなければそのカテゴリは空。
 
     aliases は {正式ラベル: (言い換え, ...)}。言い換えは照合にだけ使い、
@@ -86,9 +86,9 @@ def match(text, vocab, aliases=None, per_category=2, min_len=1):
     """
     t = _norm(text)
     if not t.strip():
-        return {}
+        return {}, {}
     aliases = aliases or {}
-    out = {}
+    out, ties = {}, {}
     for cat, entries in vocab.items():
         scored = []
         for idx, entry in enumerate(entries):
@@ -107,9 +107,13 @@ def match(text, vocab, aliases=None, per_category=2, min_len=1):
         if scored:
             scored.sort(reverse=True)
             top = scored[0][0]
-            # 最高点に並んだものだけ複数採る（弱い候補で水増ししない）
             out[cat] = [lab for sc, _, _, lab in scored[:per_category] if sc == top]
-    return out
+            # 同点で採らなかったものは「他にも候補があった」として返す。
+            # 両方採ると「若い女性＋年配の女性」のように矛盾したプロンプトになる。
+            rest = [lab for sc, _, _, lab in scored[per_category:] if sc == top]
+            if rest:
+                ties[cat] = rest
+    return out, ties
 
 
 def _label_keys(labels, aliases):

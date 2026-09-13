@@ -37,11 +37,20 @@ SAVE_DIR = pathlib.Path(__file__).resolve().parent / "saved"
 
 
 def load_saved():
+    """壊れていたら (None) を返す。空と区別しないと、次の保存で上書き消失する。"""
     f = SAVE_DIR / f"{GENRE}.json"
-    try:
-        return json.loads(f.read_text(encoding="utf-8"))
-    except Exception:
+    if not f.exists():
         return []
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+        if not isinstance(data, list):
+            return None
+        # 形の違うものが混ざっていたら壊れている扱い（描画時に落ちるため）
+        if any(not isinstance(x, dict) or not x.get("name") for x in data):
+            return None
+        return data
+    except Exception:
+        return None
 
 
 def write_saved(items):
@@ -59,11 +68,30 @@ def remember(cat, value):
 MODELS = {"イラスト（animagine）": "illust",
           "写実（juggernautXL）": "photo",
           "動画（LTXV）": "video"}
+MODEL_JP = {v: k.split("（")[0] for k, v in MODELS.items()}  # 保存一覧に内部名を出さない
 
 st.title(f"{g.ICON} プロンプト工房　{g.TITLE}")
 st.caption("日本語で選ぶと英語のプロンプトができる。ComfyUI のプロンプト欄に貼って使う。")
 
-label = st.radio("モデル", list(MODELS), horizontal=True)
+# 語彙を編集してラベルが消えた／改名された分を、描画の前に一度だけ掃除する。
+# 後で落とすと、見出しには残るのにプロンプトからは消える、という食い違いが出る。
+_gone = []
+for _c in VOCAB:
+    _k = f"keep_{_c}"
+    if _k in st.session_state:
+        _labels = {e[0] for e in VOCAB[_c]}
+        _dropped = [x for x in st.session_state[_k] if x not in _labels]
+        if _dropped:
+            _gone += _dropped
+            st.session_state[_k] = [x for x in st.session_state[_k] if x in _labels]
+            st.session_state.pop(f"sel_{_c}", None)
+
+_rm = st.session_state.get("_restore", {}).get("model")
+if _rm:
+    for _k, _v in MODELS.items():
+        if _v == _rm:
+            st.session_state["model_radio"] = _k
+label = st.radio("モデル", list(MODELS), horizontal=True, key="model_radio")
 model = MODELS[label]
 
 # 文章で書いて、そこから語彙を拾う。拾った結果は下の選択欄に入るので、あとから直せる。
@@ -73,14 +101,16 @@ sentence = f1.text_input("文章で書く", "", label_visibility="collapsed",
 picked_empty = False
 if f2.button("言葉を拾う", use_container_width=True):
     if sentence.strip():
-        found = match_words(sentence, VOCAB, getattr(g, "ALIASES", None))
+        found, ties = match_words(sentence, VOCAB, getattr(g, "ALIASES", None))
         for cat in VOCAB:
             st.session_state[f"sel_{cat}"] = found.get(cat, [])
             remember(cat, found.get(cat, []))
         picked_empty = not found
         chosen = [lab for labs in found.values() for lab in labs]  # noqa: F841
-        st.session_state["_missed"] = unmatched(
-            sentence, VOCAB, getattr(g, "ALIASES", None), chosen)
+        miss, over = unmatched(sentence, VOCAB, getattr(g, "ALIASES", None), chosen)
+        # 同点で採らなかった候補も「選ばれなかった」側に混ぜる
+        over = over + [lab for labs in ties.values() for lab in labs]
+        st.session_state["_missed"] = (miss, over)
     else:
         # text_input は Enter を押すまで値が渡らない。黙って空振りさせない。
         st.warning("文章を入れて **Enter** を押してから「言葉を拾う」")
@@ -88,13 +118,17 @@ if f2.button("言葉を拾う", use_container_width=True):
 if picked_empty:
     st.info("拾える言葉が無かった。下から直接選ぶか、別の言い方で書いてみる")
 
+if _gone:
+    st.warning("**" + "、".join(_gone) + "** は語彙に無くなったので外した"
+               "（語彙ファイルを編集した？）。選び直すこと")
+
 missing, overridden = st.session_state.get("_missed") or ([], [])
 if overridden:
-    st.warning("**" + "、".join(overridden) + "** は語彙にあるが選ばれなかった"
-               "（同じ枠で別の候補が勝った）。下の選択欄で直せる")
+    st.warning("**" + "、".join(overridden) + "** は選ばれなかった"
+               "（同じ欄で別の言葉が優先された）。下で直せる")
 if missing:
-    st.caption("語彙に無い言葉：" + "、".join(missing)
-               + f"　— 要るなら genres/{GENRE}.py に足す")
+    st.caption("まだ知らない言葉：" + "、".join(missing)
+               + f"（足すなら genres/{GENRE}.py）")
 
 c1, c2, _ = st.columns([1, 1, 4])
 if c1.button("🎲 おまかせ", use_container_width=True):
@@ -118,6 +152,7 @@ if c1.button("🎲 おまかせ", use_container_width=True):
         # 人物がいない絵に服装や表情を足さない
         if no_human and cat in HUMAN_ONLY_CATS:
             st.session_state[f"sel_{cat}"] = []
+            remember(cat, [])          # 控えも消さないと畳んだ服装が残る
             continue
         pool = entries
         if no_human and cat == "主役の動き":
@@ -143,10 +178,16 @@ def panel(key, label):
     return st.session_state[key]
 
 
+_ru = st.session_state.get("_restore", {}).get("use")
+if _ru is not None:
+    for c in VOCAB:
+        st.session_state[f"use_{c}"] = c in _ru
+
 all_cats = [c for c in VOCAB if model == "video" or c not in VIDEO_ONLY]
 on = [c for c in all_cats if st.session_state.get(f"use_{c}", True)]
 
-if panel("panel_use", f"使う要素（{len(on)}/{len(all_cats)}）"):
+off = [c for c in all_cats if c not in on]
+if panel("panel_use", "使う要素" + ("　外した: " + "、".join(off) if off else "")):
     b1, b2, _ = st.columns([1, 1, 4])
     if b1.button("全部使う", use_container_width=True):
         for c in all_cats:
@@ -161,7 +202,7 @@ if panel("panel_use", f"使う要素（{len(on)}/{len(all_cats)}）"):
     ccols = st.columns(3)
     for i, c in enumerate(all_cats):
         with ccols[i % 3]:
-            st.checkbox(f"{c}（{len(VOCAB[c])}）", key=f"use_{c}", value=True)
+            st.checkbox(c, key=f"use_{c}", value=True)
 
 cats = [c for c in all_cats if st.session_state.get(f"use_{c}", True)]
 MAIN = [c for c in ALWAYS.get(model, ()) if c in cats]  # 語彙側が変わっても壊れないように
@@ -224,21 +265,27 @@ def dedupe(parts, token_level):
 
 def compose(m, target_cats):
     """選択が何も無ければ空を返す（画質タグだけのプロンプトは出さない）。"""
-    parts = [fragment(next(e for e in VOCAB[c] if e[0] == jp), m)
+    parts = [fragment(e, m)
              for c in target_cats
              for jp in st.session_state.get(f"keep_{c}", [])
-             if any(e[0] == jp for e in VOCAB[c])]
-    base = getattr(g, "BASE", {}).get(m, "")
-    if base and parts:      # 基礎は前方ほど効くので先頭に置く
-        parts.insert(0, base)
+             for e in [next((x for x in VOCAB[c] if x[0] == jp), None)] if e]
     if CH:
         parts.append(CH["text"])
     if free.strip():
         parts.append(free.strip())
     if not parts:
         return ""
+    base = getattr(g, "BASE", {}).get(m, "")
+    if base:                # 基礎は前方ほど効くので先頭に置く
+        parts.insert(0, base)
     if add_quality:
-        parts.append(QUALITY[m])
+        q = QUALITY[m]
+        if base:            # 基礎と重なる語は画質側から外す（二重に入るため）
+            seen = {t.strip().lower() for t in base.split(",")}
+            q = ", ".join(t.strip() for t in q.split(",")
+                          if t.strip().lower() not in seen)
+        if q:
+            parts.append(q)
     return ", ".join(dedupe([p for p in parts if p], token_level=(m == "illust")))
 
 
@@ -252,14 +299,10 @@ def show(title, body, note=None, placeholder=True):
         st.info("上から選ぶか「おまかせ」を押す")
 
 
-_base = getattr(g, "BASE", {}).get(model, "")
-if _base:
-    st.caption(f"毎回いちばん前に入る基礎 ─ `{_base}`")
-
+# 基礎プロンプト（BASE）はプロンプト本文の先頭に出るので、別に見せない
 if CH:
-    st.caption(f"**{chara.strip()}** の顔 ─ " +
-               "／".join(f"{k}:{v}" for k, v in CH["traits"]) +
-               f"　｜　**シード {CH['seed']}**（KSamplerのシードにこれを入れると近い顔が戻る）")
+    st.caption(f"**{chara.strip()}** のシード **{CH['seed']}**"
+               "（KSamplerのシードに入れると近い顔に寄る。顔の特徴はプロンプトに入っている）")
 
 if model == "video":
     # 動画は「情景＋動き」で書くのが最良（実測）。その情景と揃った静止画用も同時に出す。
@@ -282,15 +325,23 @@ else:
 # --- 気に入ったものを保存（手元のファイルに置くだけ。gitにも公開版にも出ない）---
 st.divider()
 items = load_saved()
+broken = items is None
+if broken:
+    items = []
+    st.error(f"`saved/{GENRE}.json` を読めない（壊れている）。"
+             "中身を確認するか、退避してから保存すること。上書きを防ぐため保存は止めてある")
 s1, s2 = st.columns([3, 1])
 save_name = s1.text_input("保存する名前", key="save_name", label_visibility="collapsed",
                           placeholder="この組み合わせに名前をつけて保存（入力後 Enter）")
-if s2.button("保存", use_container_width=True):
+if s2.button("保存", use_container_width=True, disabled=broken):
     if save_name.strip():
         items = [x for x in items if x.get("name") != save_name.strip()]
         items.insert(0, {
             "name": save_name.strip(), "model": model,
-            "sel": {c: st.session_state.get(f"keep_{c}", []) for c in VOCAB},
+            # 使っている要素だけ保存する。オフの分まで残すと、呼び出したとき
+            # 全部オンで復活して身に覚えのない語が混ざる
+            "sel": {c: st.session_state.get(f"keep_{c}", []) for c in cats},
+            "use": [c for c in all_cats if st.session_state.get(f"use_{c}", True)],
             "chara": st.session_state.get("chara", ""),
             "free": st.session_state.get("free", ""),
             "quality": bool(st.session_state.get("quality_ck", True)),
@@ -304,7 +355,7 @@ if s2.button("保存", use_container_width=True):
 if items and panel("panel_saved", f"保存したもの（{len(items)}）"):
     for i, it in enumerate(items):
         r1, r2, r3 = st.columns([4, 1, 1])
-        r1.write(f"**{it['name']}**　`{it.get('model', '')}`")
+        r1.write(f"**{it['name']}**　{MODEL_JP.get(it.get('model', ''), '')}")
         if r2.button("呼び出す", key=f"ld{i}", use_container_width=True):
             for c in VOCAB:
                 st.session_state[f"keep_{c}"] = [
@@ -316,6 +367,8 @@ if items and panel("panel_saved", f"保存したもの（{len(items)}）"):
                 "chara": it.get("chara", ""),
                 "free": it.get("free", ""),
                 "quality": bool(it.get("quality", True)),
+                "model": it.get("model", ""),
+                "use": it.get("use"),
             }
             st.rerun()
         if r3.button("消す", key=f"rm{i}", use_container_width=True):
