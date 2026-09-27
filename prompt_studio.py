@@ -71,6 +71,31 @@ MODELS = {"イラスト（animagine）": "illust",
 MODEL_JP = {v: k.split("（")[0] for k, v in MODELS.items()}  # 保存一覧に内部名を出さない
 
 st.title(f"{g.ICON} プロンプト工房　{g.TITLE}")
+
+
+def _studio_links():
+    """他の工房へのリンク。いま開いているのと同じホスト名で組む
+    （localhost で開けば localhost、Tailscale で開けば Tailscale のまま行ける）。"""
+    try:
+        host = st.context.headers.get("Host", "localhost").split(":")[0]
+    except Exception:
+        host = "localhost"
+    out = []
+    for f in sorted(pathlib.Path(__file__).resolve().parent.joinpath("genres").glob("*.py")):
+        if f.stem.startswith("_"):
+            continue
+        if f.stem == GENRE:        # 自分は読み直さない（描画中に語彙を差し替えないため）
+            out.append(f"**{g.ICON} {g.TITLE}**")
+            continue
+        try:
+            o = _common.load(f.stem)
+        except Exception:
+            continue
+        out.append(f"[{o.ICON} {o.TITLE}](http://{host}:{o.PORT})")
+    return "　".join(out)
+
+
+st.caption(_studio_links())
 st.caption("日本語で選ぶと英語のプロンプトができる。ComfyUI のプロンプト欄に貼って使う。")
 
 # 語彙を編集してラベルが消えた／改名された分を、描画の前に一度だけ掃除する。
