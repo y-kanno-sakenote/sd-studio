@@ -191,6 +191,7 @@ function dedupe(ps, tokenLevel){
 const frag=(e,m)=> (m==="photo"||m==="video") ? (e[2]||e[1]) : e[1];
 
 let G=DATA.genres[0], MODEL="illust", SEL={}, MSG=null;
+const MODELS=[["イラスト","illust"],["写実","photo"],["動画","video"]];
 const $=id=>document.getElementById(id);
 
 function catsFor(){ return Object.keys(G.vocab).filter(c=> MODEL==="video" || !G.videoOnly.includes(c)); }
@@ -203,7 +204,7 @@ function renderTop(){
   const gs=$("genres"); gs.innerHTML="";
   for(const g of DATA.genres) gs.appendChild(chip(g.icon+" "+g.title, g.id===G.id, ()=>{G=g;SEL={};MSG=null;render();}));
   const ms=$("models"); ms.innerHTML="";
-  for(const [k,v] of [["イラスト","illust"],["写実","photo"],["動画","video"]])
+  for(const [k,v] of MODELS)
     ms.appendChild(chip(k, MODEL===v, ()=>{MODEL=v;render();}, true));
   $("sentence").placeholder = G.example || "作りたい絵を文章で書く";
 }
@@ -260,7 +261,7 @@ function block(title,body,note){
       // 書き込めなかった（権限・非対応など）：文字列を選択して手で写してもらう
       const r=document.createRange(); r.selectNodeContents(pre);
       const s=getSelection(); s.removeAllRanges(); s.addRange(r);
-      b.textContent="選択してコピーしてください"; setTimeout(()=>b.textContent="コピー",4000);
+      b.textContent="手でコピーして"; setTimeout(()=>b.textContent="コピー",4000);
     };
     w.appendChild(b);
   } else {
@@ -291,7 +292,7 @@ function renderMsg(){
   }
   if(MSG.off && MSG.off.length){
     const d=document.createElement("div"); d.className="note";
-    d.textContent = MSG.off.join("、")+" は動画でだけ使う語なので、この形式では使わない";
+    d.textContent = MSG.off.join("、")+" は"+MODELS.find(x=>x[1]==="video")[0]+"用の語なので外した";
     m.appendChild(d);
   }
   if(MSG.missing && MSG.missing.length){
