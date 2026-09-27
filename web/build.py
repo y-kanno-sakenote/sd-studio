@@ -52,9 +52,9 @@ h1{font-size:19px;margin:0 0 2px;letter-spacing:.04em}
 .chip{padding:7px 13px;border:1px solid var(--line);border-radius:999px;background:var(--card);
  color:var(--ink);font-size:13px;cursor:pointer;font-family:inherit}
 .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#1b1408;font-weight:600}
-.chip.small{padding:5px 11px;font-size:12px}
+.chip.small{padding:8px 12px;font-size:12px}
 input[type=text]{flex:1;min-width:200px;padding:11px 13px;border:1px solid var(--line);border-radius:9px;
- background:var(--card);color:var(--ink);font-size:15px;font-family:inherit}
+ background:var(--card);color:var(--ink);font-size:16px;font-family:inherit}
 button.go{padding:11px 16px;border:1px solid var(--accent);border-radius:9px;background:transparent;
  color:var(--accent);font-size:14px;cursor:pointer;font-family:inherit}
 .note{font-size:12.5px;color:var(--dim);margin:-4px 0 14px}
@@ -163,20 +163,22 @@ function matchWords(text, vocab, aliases, perCat=1){
   }
   return out;
 }
-function unmatched(text, vocab, aliases, selected){
-  const known=new Set(), used=new Set();
-  for(const entries of Object.values(vocab)) for(const e of entries)
-    for(const k of allKeys(e[0],aliases)) known.add(k);
+// shown（表示中の枠）を渡すと、表示していない枠にだけある語を3つ目（この形式では使わない語）に分ける
+function unmatched(text, vocab, aliases, selected, shown){
+  const known=new Set(), hidden=new Set(), used=new Set();
+  for(const [cat, entries] of Object.entries(vocab)) for(const e of entries)
+    for(const k of allKeys(e[0],aliases)) (!shown || shown.includes(cat) ? known : hidden).add(k);
   for(const lab of selected) for(const k of allKeys(lab,aliases)) used.add(k);
-  const missing=[], over=[];
+  const missing=[], over=[], off=[];
   for(const run of runs(norm(text))){
     if(run.length<2) continue;
     const subs=[]; for(let i=0;i<run.length;i++) for(let j=i+2;j<=run.length;j++) subs.push(run.slice(i,j));
     if(subs.some(x=>used.has(x))) continue;
     if(subs.some(x=>known.has(x))){ if(!over.includes(run)) over.push(run); }
+    else if(subs.some(x=>hidden.has(x))){ if(!off.includes(run)) off.push(run); }
     else if(!missing.includes(run)) missing.push(run);
   }
-  return [missing, over];
+  return shown ? [missing, over, off] : [missing, over];
 }
 function dedupe(ps, tokenLevel){
   const seen=new Set(), out=[];
@@ -225,7 +227,7 @@ function renderCats(){
     box.appendChild(row);
     (always.includes(cat)? main : rest).appendChild(box);
   }
-  const picked=catsFor().flatMap(c=>(SEL[c]||[])).filter(x=>!main.textContent.includes(x));
+  const picked=catsFor().filter(c=>!always.includes(c)).flatMap(c=>(SEL[c]||[]));
   $("more").querySelector("summary").textContent =
     "もっと選ぶ" + (picked.length? "　"+picked.join("、") : "");
 }
@@ -251,7 +253,15 @@ function block(title,body,note){
   if(body){
     const pre=document.createElement("pre"); pre.textContent=body; w.appendChild(pre);
     const b=document.createElement("button"); b.className="copy"; b.textContent="コピー";
-    b.onclick=()=>{navigator.clipboard.writeText(body); b.textContent="コピーした"; setTimeout(()=>b.textContent="コピー",1200);};
+    b.onclick=async()=>{
+      let ok=false;
+      try{ await navigator.clipboard.writeText(body); ok=true; }catch(_){}
+      if(ok){ b.textContent="コピーした"; setTimeout(()=>b.textContent="コピー",1200); return; }
+      // 書き込めなかった（権限・非対応など）：文字列を選択して手で写してもらう
+      const r=document.createRange(); r.selectNodeContents(pre);
+      const s=getSelection(); s.removeAllRanges(); s.addRange(r);
+      b.textContent="選択してコピーしてください"; setTimeout(()=>b.textContent="コピー",4000);
+    };
     w.appendChild(b);
   } else {
     const e=document.createElement("div"); e.className="empty"; e.textContent="上から選ぶか「おまかせ」を押す"; w.appendChild(e);
@@ -279,6 +289,11 @@ function renderMsg(){
     d.textContent = MSG.over.join("、")+" は語彙にあるが選ばれなかった（同じ枠で別の候補が勝った）。下で直せる";
     m.appendChild(d);
   }
+  if(MSG.off && MSG.off.length){
+    const d=document.createElement("div"); d.className="note";
+    d.textContent = MSG.off.join("、")+" は動画でだけ使う語なので、この形式では使わない";
+    m.appendChild(d);
+  }
   if(MSG.missing && MSG.missing.length){
     const d=document.createElement("div"); d.className="note";
     d.textContent = "語彙に無い言葉：" + MSG.missing.join("、");
@@ -299,12 +314,16 @@ $("pick").onclick=()=>{
   const ties=found.__ties||{}; delete found.__ties;
   SEL={}; for(const [c,v] of Object.entries(found)) if(catsFor().includes(c)) SEL[c]=v;
   const chosen=Object.values(SEL).flat();
-  const [missing, over]=unmatched(t, G.vocab, G.aliases, chosen);
-  const tied=Object.values(ties).flat();
-  MSG={missing, over: over.concat(tied), none: !chosen.length};
+  const shown=catsFor();
+  const [missing, over, off]=unmatched(t, G.vocab, G.aliases, chosen, shown);
+  const tied=Object.entries(ties).filter(([c])=>shown.includes(c)).flatMap(([,v])=>v);
+  MSG={missing, over: over.concat(tied), off, none: !chosen.length};
   render();
 };
-$("sentence").addEventListener("keydown", e=>{ if(e.key==="Enter") $("pick").click(); });
+$("sentence").addEventListener("keydown", e=>{
+  if(e.isComposing || e.keyCode===229) return;  // 日本語変換の確定Enterでは拾わない
+  if(e.key==="Enter") $("pick").click();
+});
 $("roll").onclick=()=>{
   // 「主役」が無い工房もあるので先頭カテゴリで代用する
   const subjectCat = G.vocab["主役"] ? "主役" : catsFor().find(c=>!G.videoOnly.includes(c));
