@@ -163,11 +163,14 @@ function matchWords(text, vocab, aliases, perCat=1){
   }
   return out;
 }
-// shown（表示中の枠）を渡すと、表示していない枠にだけある語を3つ目（この形式では使わない語）に分ける
+// shown（表示中の枠）を渡すと、表示していない枠にだけある語を3つ目に語彙の見出しで返す
 function unmatched(text, vocab, aliases, selected, shown){
-  const known=new Set(), hidden=new Set(), used=new Set();
-  for(const [cat, entries] of Object.entries(vocab)) for(const e of entries)
-    for(const k of allKeys(e[0],aliases)) (!shown || shown.includes(cat) ? known : hidden).add(k);
+  const known=new Set(), hidden=new Set(), used=new Set(), hiddenLabels=[];
+  for(const [cat, entries] of Object.entries(vocab)) for(const e of entries){
+    const ks=allKeys(e[0],aliases), vis=!shown || shown.includes(cat);
+    for(const k of ks) (vis ? known : hidden).add(k);
+    if(!vis) hiddenLabels.push([e[0], ks]);
+  }
   for(const lab of selected) for(const k of allKeys(lab,aliases)) used.add(k);
   const missing=[], over=[], off=[];
   for(const run of runs(norm(text))){
@@ -175,7 +178,15 @@ function unmatched(text, vocab, aliases, selected, shown){
     const subs=[]; for(let i=0;i<run.length;i++) for(let j=i+2;j<=run.length;j++) subs.push(run.slice(i,j));
     if(subs.some(x=>used.has(x))) continue;
     if(subs.some(x=>known.has(x))){ if(!over.includes(run)) over.push(run); }
-    else if(subs.some(x=>hidden.has(x))){ if(!off.includes(run)) off.push(run); }
+    else if(subs.some(x=>hidden.has(x))){
+      // 断片ではなく、一番長く一致した見出しを出す
+      let best=0, labs=[];
+      for(const [lab,ks] of hiddenLabels){
+        let b=0; for(const x of subs) if(ks.has(x)) b=Math.max(b,x.length);
+        if(b>best){best=b; labs=[lab];} else if(b && b===best) labs.push(lab);
+      }
+      for(const l of labs) if(!off.includes(l)) off.push(l);
+    }
     else if(!missing.includes(run)) missing.push(run);
   }
   return shown ? [missing, over, off] : [missing, over];
@@ -292,7 +303,7 @@ function renderMsg(){
   }
   if(MSG.off && MSG.off.length){
     const d=document.createElement("div"); d.className="note";
-    d.textContent = MSG.off.join("、")+" は"+MODELS.find(x=>x[1]==="video")[0]+"用の語なので外した";
+    d.textContent = MSG.off.map(x=>"『"+x+"』").join("・")+"は"+MODELS.find(x=>x[1]==="video")[0]+"用の語なので外した";
     m.appendChild(d);
   }
   if(MSG.missing && MSG.missing.length){
