@@ -53,19 +53,21 @@ def get(path):
 
 def build_graph(a, p):
     pos = f"{a.prompt}, {p['quality']}" if not a.raw else a.prompt
-    return {
+    src = ["9", 0] if a.lora else ["1", 0]   # LoRA があれば model/clip は LoraLoader 経由
+    clip = ["9", 1] if a.lora else ["1", 1]
+    g = {
         "1": {"class_type": "CheckpointLoaderSimple",
               "inputs": {"ckpt_name": p["ckpt"]}},
         "2": {"class_type": "CLIPTextEncode",
-              "inputs": {"text": pos, "clip": ["1", 1]}},
+              "inputs": {"text": pos, "clip": clip}},
         "3": {"class_type": "CLIPTextEncode",
-              "inputs": {"text": a.negative or p["negative"], "clip": ["1", 1]}},
+              "inputs": {"text": a.negative or p["negative"], "clip": clip}},
         "4": {"class_type": "EmptyLatentImage",
               "inputs": {"width": a.width, "height": a.height, "batch_size": a.n}},
         "5": {"class_type": "KSampler",
               "inputs": {"seed": a.seed, "steps": a.steps, "cfg": a.cfg,
                          "sampler_name": a.sampler, "scheduler": a.scheduler,
-                         "denoise": 1.0, "model": ["1", 0],
+                         "denoise": 1.0, "model": src,
                          "positive": ["2", 0], "negative": ["3", 0], "latent_image": ["4", 0]}},
         "6": {"class_type": "VAELoader",
               "inputs": {"vae_name": "sdxl_vae.safetensors"}},
@@ -74,6 +76,11 @@ def build_graph(a, p):
         "8": {"class_type": "SaveImage",
               "inputs": {"images": ["7", 0], "filename_prefix": a.tag}},
     }
+    if a.lora:
+        g["9"] = {"class_type": "LoraLoader",
+                  "inputs": {"lora_name": a.lora, "strength_model": a.lora_w, "strength_clip": a.lora_w,
+                             "model": ["1", 0], "clip": ["1", 1]}}
+    return g
 
 
 def main():
@@ -89,6 +96,8 @@ def main():
     ap.add_argument("--sampler", default="dpmpp_2m")
     ap.add_argument("--scheduler", default="karras")
     ap.add_argument("--tag", default="sd", help="出力ファイル名の接頭辞")
+    ap.add_argument("--lora", default="", help="~/ComfyUI/models/loras のファイル名（例 pixel-art-xl.safetensors）")
+    ap.add_argument("--lora-w", type=float, default=1.0, dest="lora_w", help="LoRA の強さ")
     ap.add_argument("--raw", action="store_true", help="品質タグを足さず prompt をそのまま使う")
     ap.add_argument("--timeout", type=int, default=900, help="完了待ちの上限秒")
     ap.add_argument("-o", "--out", default=str(ROOT / "out"))

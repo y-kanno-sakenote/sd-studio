@@ -16,6 +16,8 @@ dev/sd-studio/bin/start.sh
 # 2. 別ターミナル or Claude から一括生成
 python3 dev/sd-studio/gen.py "1girl, sake brewery, kimono" -n 4
 python3 dev/sd-studio/gen.py "japanese sake bottle on wooden counter" -m photo
+# LoRA を噛ませる（~/ComfyUI/models/loras のファイル名。例: ドット絵用 pixel-art-xl）
+python3 dev/sd-studio/gen.py "pixel art, wolf boss, plain magenta background" --raw --lora pixel-art-xl.safetensors --lora-w 1.0
 ```
 
 出力は `out/` に落ちる（gitignore済み）。
