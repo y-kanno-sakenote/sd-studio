@@ -152,7 +152,7 @@ def video_i2v(name, pos_text):
 
 if __name__ == "__main__":
     print("生成:")
-    still("1_イラスト", "animagine-xl-4.0.safetensors", "illust",
+    still("1_イラスト", "animagine-xl-4.0-opt.safetensors", "illust",
           "1girl, sake brewery interior, kimono, holding a sake cup, warm lantern light, "
           "masterpiece, high score, great score, absurdres")
     still("2_写実", "juggernautXL-v9.safetensors", "photo",

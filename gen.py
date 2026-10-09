@@ -14,7 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parent
 # モデル別プリセット: (ckpt ファイル名, 品質タグ, ネガティブ, 既定steps, 既定cfg)
 PRESETS = {
     "illust": dict(
-        ckpt="animagine-xl-4.0.safetensors",
+        ckpt="animagine-xl-4.0-opt.safetensors",
         quality="masterpiece, high score, great score, absurdres",
         negative="nsfw, nude, nipples, cleavage, revealing clothes, underwear, "
                  "lowres, bad anatomy, bad hands, text, error, missing finger, "

@@ -46,7 +46,7 @@
     "Node name for S&R": "CheckpointLoaderSimple"
    },
    "widgets_values": [
-    "animagine-xl-4.0.safetensors"
+    "animagine-xl-4.0-opt.safetensors"
    ]
   },
   {
