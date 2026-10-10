@@ -57,7 +57,7 @@ def build_graph(a, p):
     clip = ["9", 1] if a.lora else ["1", 1]
     g = {
         "1": {"class_type": "CheckpointLoaderSimple",
-              "inputs": {"ckpt_name": p["ckpt"]}},
+              "inputs": {"ckpt_name": (a.ckpt or p["ckpt"])}},
         "2": {"class_type": "CLIPTextEncode",
               "inputs": {"text": pos, "clip": clip}},
         "3": {"class_type": "CLIPTextEncode",
@@ -96,6 +96,8 @@ def main():
     ap.add_argument("--sampler", default="dpmpp_2m")
     ap.add_argument("--scheduler", default="karras")
     ap.add_argument("--tag", default="sd", help="出力ファイル名の接頭辞")
+    ap.add_argument("--ckpt", default="", help="モデルのファイル名を直接指定（プリセットより優先）。"
+                    "過去の記録を再現するとき用。例 animagine-xl-4.0.safetensors")
     ap.add_argument("--lora", default="", help="~/ComfyUI/models/loras のファイル名（例 pixel-art-xl.safetensors）")
     ap.add_argument("--lora-w", type=float, default=1.0, dest="lora_w", help="LoRA の強さ")
     ap.add_argument("--raw", action="store_true", help="品質タグを足さず prompt をそのまま使う")
@@ -122,7 +124,7 @@ def main():
 
     t0 = time.time()
     pid = post("/prompt", {"prompt": build_graph(a, p)})["prompt_id"]
-    print(f"model={p['ckpt']} seed={a.seed} steps={a.steps} cfg={a.cfg} {a.width}x{a.height} x{a.n}")
+    print(f"model={a.ckpt or p['ckpt']} seed={a.seed} steps={a.steps} cfg={a.cfg} {a.width}x{a.height} x{a.n}")
 
     deadline = time.time() + a.timeout
     while True:
