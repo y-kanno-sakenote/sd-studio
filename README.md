@@ -47,7 +47,7 @@ python3 dev/sd-studio/gen.py "pixel art, wolf boss, plain magenta background" --
 ## モデル
 | プリセット | ckpt | 用途 |
 |---|---|---|
-| `illust`（既定） | animagine-xl-4.0-opt | アニメ・イラスト。カード絵、キャラ、ゲーム素材（2026-10-10に無印から改良版へ。無印は他用途のため残してある） |
+| `illust`（既定） | animagine-xl-4.0-opt | アニメ・イラスト。カード絵、キャラ、ゲーム素材（2026-10-10に無印から改良版へ。無印は削除済み。過去の記録を再現するときは取り直して `--ckpt` で指定） |
 | `photo` | juggernautXL-v9 | 写実。酒瓶・料理・資料スライド用 |
 | （動画） | ltxv-2b-0.9.8-distilled ＋ t5xxl_fp16 | 下記「動画」参照。VAEはチェックポイント同梱 |
 
