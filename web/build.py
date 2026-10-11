@@ -77,6 +77,7 @@ footer{margin-top:34px;font-size:12px;color:#6d645d}
 <div class="wrap">
 <h1>🍶 プロンプト工房</h1>
 <p class="sub">日本語で選ぶと英語のプロンプトができる。画像生成AIの入力欄に貼って使う。</p>
+<p class="note"><a href="photo-styles.html" style="color:var(--accent)">📷 手元の写真を、ポスターや版画の絵柄に描き直す → 写真の絵柄がえ帖</a></p>
 
 <div class="row" id="genres"></div>
 <div class="row" id="models"></div>
