@@ -92,6 +92,7 @@ for f in sorted((root / "genres").glob("*.py")):
 <h1>プロンプト工房</h1>
 <p class="sub">日本語で選ぶと英語のプロンプトができる。ComfyUI のプロンプト欄に貼って使う。</p>
 <div class="grid">{"".join(cards)}</div>
+<p class="comfy">▸ <a href="https://y-kanno-sakenote.github.io/sd-studio/photo-styles.html" target="_blank">📷 写真の絵柄がえ帖</a><br><span style="color:#6d645d">手元の写真をポスターや版画の絵柄に描き直す頼み文集（ChatGPT・Gemini 用）。公開版のページを開く</span></p>
 <p class="comfy">▸ <a href="http://{host}:8188" target="_blank">ComfyUI（生成する場所）</a><br><span style="color:#6d645d">ComfyUI を他端末から使うときは <code>bin/start.sh --remote</code> で起動する</span></p>
 <p class="comfy">▸ <a href="file://{saved}">保存したプロンプト（savedフォルダ）</a><br><span style="color:#6d645d">工房ごとに1ファイル。このMacの中だけ・gitにも公開版にも出ない</span></p>
 ''', encoding="utf-8")
