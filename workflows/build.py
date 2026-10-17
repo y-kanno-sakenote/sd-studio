@@ -68,6 +68,61 @@ def still(name, ckpt, mode, pos_text):
     dump(name, nodes, links, 8, 9)
 
 
+def still_ref(name, ckpt, mode, pos_text):
+    """静止画＋手本の絵柄に寄せる（IP-Adapter plus SDXL）。gen.py --ref と同じつなぎ方。個人利用に限る"""
+    note = ("【手本の絵柄に寄せる・個人利用に限る】\n"
+            "① 左下の「画像を読み込む」で手本の画像を選ぶ（upload）\n"
+            "② 上の文に、描きたいものを英語で書く（作家名は入れない）\n"
+            "③ IPAdapter Advanced の weight＝効きの強さ（0.8から。寄せたいほど上げる）\n"
+            "   weight_type：style transfer＝絵柄だけ（おすすめ）／strong style transfer＝強く（weight 0.5前後から。手本の中身が漏れやすい）／linear＝中身まで寄せる\n"
+            "④ 実行。1枚90秒ほど\n"
+            "※ 公開・販売・SNSに出さない。既存のキャラクターは再現しない。\n"
+            "※ この画面で上げた手本は ~/ComfyUI/input に残る。気になったら消す")
+    nodes = [
+        node(1, "CheckpointLoaderSimple", (40, 300), (340, 98),
+             outputs=[("MODEL", "MODEL", [1]), ("CLIP", "CLIP", [2, 3]), ("VAE", "VAE", None)],
+             widgets=[ckpt]),
+        node(2, "CLIPTextEncode", (430, 100), (420, 200),
+             inputs=[("clip", "CLIP", 2)], outputs=[("CONDITIONING", "CONDITIONING", [4])],
+             widgets=[pos_text]),
+        node(3, "CLIPTextEncode", (430, 340), (420, 200),
+             inputs=[("clip", "CLIP", 3)], outputs=[("CONDITIONING", "CONDITIONING", [5])],
+             widgets=[NEGATIVE[mode]]),
+        node(4, "EmptyLatentImage", (430, 580), (330, 106),
+             outputs=[("LATENT", "LATENT", [6])], widgets=[832, 1216, 1]),
+        node(5, "KSampler", (1300, 200), (330, 262),
+             inputs=[("model", "MODEL", 10), ("positive", "CONDITIONING", 4),
+                     ("negative", "CONDITIONING", 5), ("latent_image", "LATENT", 6)],
+             outputs=[("LATENT", "LATENT", [7])],
+             widgets=[42, "randomize", 20, 5.0 if mode == "illust" else 4.5, "dpmpp_2m", "karras", 1.0]),
+        node(6, "VAELoader", (40, 460), (340, 58),
+             outputs=[("VAE", "VAE", [8])], widgets=["sdxl_vae.safetensors"]),
+        node(7, "VAEDecode", (1680, 200), (250, 46),
+             inputs=[("samples", "LATENT", 7), ("vae", "VAE", 8)],
+             outputs=[("IMAGE", "IMAGE", [9])]),
+        node(8, "SaveImage", (1680, 300), (420, 460),
+             inputs=[("images", "IMAGE", 9)], widgets=[mode + "_ref"]),
+        node(9, "IPAdapterUnifiedLoader", (900, 600), (340, 78),
+             inputs=[("model", "MODEL", 1)],
+             outputs=[("model", "MODEL", [11]), ("ipadapter", "IPADAPTER", [12])],
+             widgets=["PLUS (high strength)"]),
+        node(10, "IPAdapterAdvanced", (900, 740), (340, 280),
+             inputs=[("model", "MODEL", 11), ("ipadapter", "IPADAPTER", 12), ("image", "IMAGE", 13)],
+             outputs=[("MODEL", "MODEL", [10])],
+             widgets=[0.8, "style transfer", "concat", 0.0, 1.0, "V only"]),
+        node(11, "LoadImage", (40, 600), (390, 380),
+             outputs=[("IMAGE", "IMAGE", [13]), ("MASK", "MASK", None)],
+             widgets=["sample_anime_still.png", "image"]),
+        node(12, "Note", (40, 40), (380, 230), widgets=[note]),
+    ]
+    links = [[1, 1, 0, 9, 0, "MODEL"], [2, 1, 1, 2, 0, "CLIP"], [3, 1, 1, 3, 0, "CLIP"],
+             [4, 2, 0, 5, 1, "CONDITIONING"], [5, 3, 0, 5, 2, "CONDITIONING"],
+             [6, 4, 0, 5, 3, "LATENT"], [7, 5, 0, 7, 0, "LATENT"], [8, 6, 0, 7, 1, "VAE"],
+             [9, 7, 0, 8, 0, "IMAGE"], [10, 10, 0, 5, 0, "MODEL"], [11, 9, 0, 10, 0, "MODEL"],
+             [12, 9, 1, 10, 1, "IPADAPTER"], [13, 11, 0, 10, 2, "IMAGE"]]
+    dump(name, nodes, links, 12, 13)
+
+
 def video_t2v(name, pos_text):
     nodes = [
         node(1, "CheckpointLoaderSimple", (40, 240), (390, 98),
@@ -167,3 +222,6 @@ if __name__ == "__main__":
               "warm lantern light, "
               "she walks slowly forward, her kimono sways gently, "
               "the camera slowly pushes in")
+    still_ref("5_手本の絵柄に寄せる", "animagine-xl-4.0-opt.safetensors", "illust",
+              "a bottle of japanese sake and a small cup on a wooden table, no humans, "
+              "masterpiece, high score, great score, absurdres")

@@ -31,6 +31,7 @@ python3 dev/sd-studio/gen.py "pixel art, wolf boss, plain magenta background" --
 | `2_写実` | juggernautXL + 写実用ネガティブ | 写実 |
 | `3_動画` | LTXV テキスト→動画 | 動画 |
 | `4_静止画から動画` | LTXV 画像→動画（アニメ向き） | 動画 |
+| `5_手本の絵柄に寄せる` | animagine ＋ IP-Adapter（手本の画像で絵柄を寄せる・個人利用に限る。使い方は画面左上のメモ） | イラスト |
 
 **モデルごとにネガティブが違うので、1本を使い回さず用途で開き分ける**（写実にイラスト用ネガティブを入れると、juggernautを写真に留める `cartoon, anime, 3d render` が抜けてしまう）。出力ファイル名も用途別（`illust_` / `photo_` / `video_`）。
 
@@ -223,7 +224,7 @@ ComfyUI は `--listen 127.0.0.1,<TailscaleのIP>` で**その2つだけ**に開�
 止めるときは `bin/studios.sh stop` / `bin/start.sh stop`。
 
 ## 手本の絵柄に寄せる（IP-Adapter・個人利用に限る）
-気に入ったイラストを手本にして、絵柄（塗り・色づかい・線の雰囲気）を寄せて描かせる。2026-10-17 導入。
+気に入ったイラストを手本にして、絵柄（塗り・色づかい・線の雰囲気）を寄せて描かせる。2026-10-17 導入。ComfyUI の画面（スマホからも可）ではワークフロー `5_手本の絵柄に寄せる` を開く
 
 ```bash
 python3 dev/sd-studio/gen.py "a bottle of sake on a wooden table, no humans" --ref ~/Desktop/お手本.png

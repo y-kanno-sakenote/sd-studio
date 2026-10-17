@@ -1,0 +1,595 @@
+{
+ "last_node_id": 12,
+ "last_link_id": 13,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    40,
+    300
+   ],
+   "size": [
+    340,
+    98
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      1
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      2,
+      3
+     ],
+     "slot_index": 1
+    },
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": null,
+     "slot_index": 2
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple"
+   },
+   "widgets_values": [
+    "animagine-xl-4.0-opt.safetensors"
+   ]
+  },
+  {
+   "id": 2,
+   "type": "CLIPTextEncode",
+   "pos": [
+    430,
+    100
+   ],
+   "size": [
+    420,
+    200
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 2
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      4
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "a bottle of japanese sake and a small cup on a wooden table, no humans, masterpiece, high score, great score, absurdres"
+   ]
+  },
+  {
+   "id": 3,
+   "type": "CLIPTextEncode",
+   "pos": [
+    430,
+    340
+   ],
+   "size": [
+    420,
+    200
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "clip",
+     "type": "CLIP",
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      5
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "widgets_values": [
+    "nsfw, nude, nipples, cleavage, revealing clothes, underwear, lowres, bad anatomy, bad hands, text, error, missing finger, extra digits, fewer digits, cropped, worst quality, low quality, low score, bad score, average score, signature, watermark, username, blurry"
+   ]
+  },
+  {
+   "id": 4,
+   "type": "EmptyLatentImage",
+   "pos": [
+    430,
+    580
+   ],
+   "size": [
+    330,
+    106
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      6
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "EmptyLatentImage"
+   },
+   "widgets_values": [
+    832,
+    1216,
+    1
+   ]
+  },
+  {
+   "id": 5,
+   "type": "KSampler",
+   "pos": [
+    1300,
+    200
+   ],
+   "size": [
+    330,
+    262
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 10
+    },
+    {
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 4
+    },
+    {
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 5
+    },
+    {
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 6
+    }
+   ],
+   "outputs": [
+    {
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      7
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "widgets_values": [
+    42,
+    "randomize",
+    20,
+    5.0,
+    "dpmpp_2m",
+    "karras",
+    1.0
+   ]
+  },
+  {
+   "id": 6,
+   "type": "VAELoader",
+   "pos": [
+    40,
+    460
+   ],
+   "size": [
+    340,
+    58
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      8
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "widgets_values": [
+    "sdxl_vae.safetensors"
+   ]
+  },
+  {
+   "id": 7,
+   "type": "VAEDecode",
+   "pos": [
+    1680,
+    200
+   ],
+   "size": [
+    250,
+    46
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "samples",
+     "type": "LATENT",
+     "link": 7
+    },
+    {
+     "name": "vae",
+     "type": "VAE",
+     "link": 8
+    }
+   ],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      9
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "widgets_values": []
+  },
+  {
+   "id": 8,
+   "type": "SaveImage",
+   "pos": [
+    1680,
+    300
+   ],
+   "size": [
+    420,
+    460
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "images",
+     "type": "IMAGE",
+     "link": 9
+    }
+   ],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "widgets_values": [
+    "illust_ref"
+   ]
+  },
+  {
+   "id": 9,
+   "type": "IPAdapterUnifiedLoader",
+   "pos": [
+    900,
+    600
+   ],
+   "size": [
+    340,
+    78
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 1
+    }
+   ],
+   "outputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "links": [
+      11
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "ipadapter",
+     "type": "IPADAPTER",
+     "links": [
+      12
+     ],
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "IPAdapterUnifiedLoader"
+   },
+   "widgets_values": [
+    "PLUS (high strength)"
+   ]
+  },
+  {
+   "id": 10,
+   "type": "IPAdapterAdvanced",
+   "pos": [
+    900,
+    740
+   ],
+   "size": [
+    340,
+    280
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "inputs": [
+    {
+     "name": "model",
+     "type": "MODEL",
+     "link": 11
+    },
+    {
+     "name": "ipadapter",
+     "type": "IPADAPTER",
+     "link": 12
+    },
+    {
+     "name": "image",
+     "type": "IMAGE",
+     "link": 13
+    }
+   ],
+   "outputs": [
+    {
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      10
+     ],
+     "slot_index": 0
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "IPAdapterAdvanced"
+   },
+   "widgets_values": [
+    0.8,
+    "style transfer",
+    "concat",
+    0.0,
+    1.0,
+    "V only"
+   ]
+  },
+  {
+   "id": 11,
+   "type": "LoadImage",
+   "pos": [
+    40,
+    600
+   ],
+   "size": [
+    390,
+    380
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [
+    {
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      13
+     ],
+     "slot_index": 0
+    },
+    {
+     "name": "MASK",
+     "type": "MASK",
+     "links": null,
+     "slot_index": 1
+    }
+   ],
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "widgets_values": [
+    "sample_anime_still.png",
+    "image"
+   ]
+  },
+  {
+   "id": 12,
+   "type": "Note",
+   "pos": [
+    40,
+    40
+   ],
+   "size": [
+    380,
+    230
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "inputs": [],
+   "outputs": [],
+   "properties": {
+    "Node name for S&R": "Note"
+   },
+   "widgets_values": [
+    "【手本の絵柄に寄せる・個人利用に限る】\n① 左下の「画像を読み込む」で手本の画像を選ぶ（upload）\n② 上の文に、描きたいものを英語で書く（作家名は入れない）\n③ IPAdapter Advanced の weight＝効きの強さ（0.8から。寄せたいほど上げる）\n   weight_type：style transfer＝絵柄だけ（おすすめ）／strong style transfer＝強く（weight 0.5前後から。手本の中身が漏れやすい）／linear＝中身まで寄せる\n④ 実行。1枚90秒ほど\n※ 公開・販売・SNSに出さない。既存のキャラクターは再現しない。\n※ この画面で上げた手本は ~/ComfyUI/input に残る。気になったら消す"
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   9,
+   0,
+   "MODEL"
+  ],
+  [
+   2,
+   1,
+   1,
+   2,
+   0,
+   "CLIP"
+  ],
+  [
+   3,
+   1,
+   1,
+   3,
+   0,
+   "CLIP"
+  ],
+  [
+   4,
+   2,
+   0,
+   5,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   5,
+   3,
+   0,
+   5,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   6,
+   4,
+   0,
+   5,
+   3,
+   "LATENT"
+  ],
+  [
+   7,
+   5,
+   0,
+   7,
+   0,
+   "LATENT"
+  ],
+  [
+   8,
+   6,
+   0,
+   7,
+   1,
+   "VAE"
+  ],
+  [
+   9,
+   7,
+   0,
+   8,
+   0,
+   "IMAGE"
+  ],
+  [
+   10,
+   10,
+   0,
+   5,
+   0,
+   "MODEL"
+  ],
+  [
+   11,
+   9,
+   0,
+   10,
+   0,
+   "MODEL"
+  ],
+  [
+   12,
+   9,
+   1,
+   10,
+   1,
+   "IPADAPTER"
+  ],
+  [
+   13,
+   11,
+   0,
+   10,
+   2,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {},
+ "version": 0.4
+}
