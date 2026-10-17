@@ -222,6 +222,23 @@ ComfyUI は `--listen 127.0.0.1,<TailscaleのIP>` で**その2つだけ**に開�
 
 止めるときは `bin/studios.sh stop` / `bin/start.sh stop`。
 
+## 手本の絵柄に寄せる（IP-Adapter・個人利用に限る）
+気に入ったイラストを手本にして、絵柄（塗り・色づかい・線の雰囲気）を寄せて描かせる。2026-10-17 導入。
+
+```bash
+python3 dev/sd-studio/gen.py "a bottle of sake on a wooden table, no humans" --ref ~/Desktop/お手本.png
+python3 dev/sd-studio/gen.py "..." --ref お手本.png --ref-mode strong --ref-w 0.5
+```
+| `--ref-mode` | 中身 |
+|---|---|
+| `style`（既定） | 絵柄だけ寄せる。手本の構図や中身は写さない |
+| `strong` | 絵柄を強く。強さ0.8だと手本の中身まで漏れた → `--ref-w 0.5` 前後から |
+| `all` | 絵柄も中身も寄せる。手本がほぼそのまま出るので使いどころ注意 |
+
+- `--ref-w` は効きの強さ（既定0.8）。手本を使うと1枚あたり約1.4〜1.5倍の時間がかかる
+- 中身：拡張 `~/ComfyUI/custom_nodes/ComfyUI_IPAdapter_plus`（cubiq、2025-04以降更新なし）＋ `models/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors` ＋ `models/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`（どちらも Hugging Face h94/IP-Adapter）
+- **約束**：生成物は手元だけで使う（公開・販売・SNSに出さない）／特定の作家名をプロンプトに入れない／既存のキャラクターを再現しない／手本の画像とプロンプトは記録にもgitにも残さない。手本は毎回別名で ComfyUI に上げ、生成が終わったら `~/ComfyUI/input` から消える
+
 ## gen.py の主なオプション
 - `-m illust|photo` モデル切替
 - `-n 4` 枚数（バッチ）
