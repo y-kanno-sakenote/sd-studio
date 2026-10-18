@@ -32,6 +32,7 @@ python3 dev/sd-studio/gen.py "pixel art, wolf boss, plain magenta background" --
 | `3_動画` | LTXV テキスト→動画 | 動画 |
 | `4_静止画から動画` | LTXV 画像→動画（アニメ向き） | 動画 |
 | `5_手本の絵柄に寄せる` | animagine ＋ IP-Adapter（手本の画像で絵柄を寄せる・個人利用に限る。使い方は画面左上のメモ） | イラスト |
+| `6_人物とポーズを組み合わせる` | animagine ＋ IP-Adapter（Aの人物）＋ DWPose→ControlNet（Bのポーズ）。顔の手本は既定で外してある（使い方は画面左上のメモ） | イラスト |
 
 **モデルごとにネガティブが違うので、1本を使い回さず用途で開き分ける**（写実にイラスト用ネガティブを入れると、juggernautを写真に留める `cartoon, anime, 3d render` が抜けてしまう）。出力ファイル名も用途別（`illust_` / `photo_` / `video_`）。
 
@@ -239,6 +240,21 @@ python3 dev/sd-studio/gen.py "..." --ref お手本.png --ref-mode strong --ref-w
 - `--ref-w` は効きの強さ（既定0.8）。手本を使うと1枚あたり約1.4〜1.5倍の時間がかかる
 - 中身：拡張 `~/ComfyUI/custom_nodes/ComfyUI_IPAdapter_plus`（cubiq、2025-04以降更新なし）＋ `models/ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors` ＋ `models/clip_vision/CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors`（どちらも Hugging Face h94/IP-Adapter）
 - **約束**：生成物は手元だけで使う（公開・販売・SNSに出さない）／特定の作家名をプロンプトに入れない／既存のキャラクターを再現しない／手本の画像とプロンプトは記録にもgitにも残さない。手本は毎回別名で ComfyUI に上げ、生成が終わったら `~/ComfyUI/input` から消える
+
+## Aの人物 × Bのポーズ（イラスト・個人利用に限る）
+2026-10-19 導入。Bの画像から姿勢の骨組み（DWPose）を取り出して ControlNet で描かせ、Aの人物は IP-Adapter で寄せる。
+
+```bash
+python3 dev/sd-studio/gen.py "1girl, short red hair, green eyes, white haori, navy hakama, waving, full body" \
+  --ref A.png --ref-mode all --ref-w 0.45 --pose B.png -s 832x1216
+python3 dev/sd-studio/gen.py "..." --pose B.png --draft     # 下書き（約0.6倍の大きさで速く。良いものだけ本番の大きさで）
+```
+- **実測（2026-10-19）**：`--ref A --ref-mode all --ref-w 0.45 --pose B --pose-w 0.75` で、Aの髪・服の飾りを保ったままBの姿勢（手を振る・腰に手）が出た。1枚約1.5〜2分（下書きは約30秒）
+- **顔の手本 `--face`（顔のあたりの切り抜き）**：イラストでは 0.5〜0.6 で画面が白っぽく荒れた。0.3 でも荒れることがある → **まず顔なしで描き、足りないときだけ足す**（背景の白っぽさは `--ref-mode all` の影響もありうる。未検証）
+- 文（プロンプト）にもAの特徴とBのポーズを書くと効きがよい
+- 手本を使う生成の前に、Ollama のモデルを自動で下ろしてメモリを空ける（`--keep-ollama` で無効）
+- 中身：拡張 `comfyui_controlnet_aux`（Python部品は本体の版を固定して導入。導入前の一覧は `~/ComfyUI/pip_freeze_before_controlnet_aux_20261019.txt`）＋ `models/controlnet/controlnet-openpose-sdxl-xinsir.safetensors`（xinsir）＋ `models/ipadapter/ip-adapter-plus-face_sdxl_vit-h.safetensors`（h94）。DWPose のモデルは初回の実行時に自動で入る
+- 約束は「手本の絵柄に寄せる」と同じ。Aに使うのは自分のキャラか了承を得た人物だけ。既存のキャラクターは再現しない
 
 ## gen.py の主なオプション
 - `-m illust|photo` モデル切替

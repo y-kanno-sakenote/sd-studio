@@ -92,7 +92,54 @@ def build_graph(a, p):
                               "combine_embeds": "concat", "start_at": 0.0, "end_at": 1.0,
                               "embeds_scaling": "V only"}}
         g["5"]["inputs"]["model"] = ["12", 0]
+    if a.face_name:
+        # 顔の手本（Aの顔のあたりを切り抜いた画像がよく効く）。全身の手本があればその後ろにつなぐ
+        g["13"] = {"class_type": "LoadImage", "inputs": {"image": a.face_name}}
+        g["14"] = {"class_type": "IPAdapterUnifiedLoader",
+                   "inputs": {"model": g["5"]["inputs"]["model"], "preset": "PLUS FACE (portraits)"}}
+        if a.ref_name:   # 全身の手本と画像の読み取り役（CLIP vision）を共有して、メモリに二重に載せない
+            g["14"]["inputs"]["ipadapter"] = ["11", 1]
+        g["15"] = {"class_type": "IPAdapterAdvanced",
+                   "inputs": {"model": ["14", 0], "ipadapter": ["14", 1], "image": ["13", 0],
+                              "weight": a.face_w, "weight_type": "linear",
+                              "combine_embeds": "concat", "start_at": 0.0, "end_at": 1.0,
+                              "embeds_scaling": "V only"}}
+        g["5"]["inputs"]["model"] = ["15", 0]
+    if a.pose_name:
+        # ポーズの手本（B）から骨組みを取り出し（DWPose）、ControlNet で骨組みどおりに描かせる
+        g["16"] = {"class_type": "LoadImage", "inputs": {"image": a.pose_name}}
+        g["17"] = {"class_type": "DWPreprocessor",
+                   "inputs": {"image": ["16", 0], "detect_hand": "enable", "detect_body": "enable",
+                              "detect_face": "enable", "resolution": 1024,
+                              "bbox_detector": "yolox_l.onnx", "pose_estimator": "dw-ll_ucoco_384.onnx",
+                              "scale_stick_for_xinsr_cn": "enable"}}   # xinsir の ControlNet 向けの線の太さ
+        g["18"] = {"class_type": "ControlNetLoader",
+                   "inputs": {"control_net_name": "controlnet-openpose-sdxl-xinsir.safetensors"}}
+        g["19"] = {"class_type": "ControlNetApplyAdvanced",
+                   "inputs": {"positive": ["2", 0], "negative": ["3", 0], "control_net": ["18", 0],
+                              "image": ["17", 0], "strength": a.pose_w,
+                              "start_percent": 0.0, "end_percent": 1.0, "vae": ["6", 0]}}
+        g["5"]["inputs"]["positive"] = ["19", 0]
+        g["5"]["inputs"]["negative"] = ["19", 1]
     return g
+
+
+def free_ollama():
+    """生成の前に Ollama のモデルを下ろしてメモリを空ける（24GBで SDXL＋手本＋ControlNet を載せるため。2026-10-19）。
+    Ollama が動いていない・何も載っていないときは何もしない"""
+    try:
+        ps = json.loads(urllib.request.urlopen("http://127.0.0.1:11434/api/ps", timeout=2).read())
+    except Exception:
+        return
+    for m in ps.get("models", []):
+        try:
+            req = urllib.request.Request("http://127.0.0.1:11434/api/generate",
+                                         data=json.dumps({"model": m["name"], "keep_alive": 0}).encode(),
+                                         headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=30).read()
+            print(f"Ollama の {m['name']} を下ろした（メモリを空けるため）")
+        except Exception:
+            pass
 
 
 # --ref-mode の日本語寄りの呼び名 → IPAdapterAdvanced の weight_type
@@ -101,11 +148,11 @@ REF_MODES = {"style": "style transfer",          # 絵柄だけ寄せる（既�
              "all": "linear"}                    # 絵柄も中身も寄せる（手本がほぼそのまま出る。使いどころ注意）
 
 
-def upload_ref(path):
+def upload_ref(path, opt="--ref"):
     """手本の画像を ComfyUI の input に上げ、サーバ側の名前を返す（multipart を手組み）"""
     p = pathlib.Path(path).expanduser()
     if not p.is_file():
-        sys.exit(f"--ref の画像が見つからない: {p}")
+        sys.exit(f"{opt} の画像が見つからない: {p}")
     boundary = "----sdstudio" + str(random.randint(0, 10**12))
     # 毎回ちがう名前で上げる（同じ名前の画像を上書きしない）。生成後に cleanup_ref で消す
     up = f"sdref_{random.randint(0, 10**9):09d}{p.suffix.lower() or '.png'}"
@@ -123,6 +170,27 @@ def cleanup_ref(name):
     f = pathlib.Path.home() / "ComfyUI" / "input" / name
     if name and f.name.startswith("sdref_") and f.is_file():
         f.unlink()
+
+
+def run(a, p):
+    """グラフを投げて完了まで待つ。戻り値は (history, prompt_id, status, 開始時刻)"""
+    t0 = time.time()
+    pid = post("/prompt", {"prompt": build_graph(a, p)})["prompt_id"]
+    ref = (f" 手本={a.ref_mode}/{a.ref_w}" if a.ref else "") + (f" 顔={a.face_w}" if a.face else "") + \
+          (f" ポーズ={a.pose_w}" if a.pose else "") + (" 下書き" if a.draft else "")
+    print(f"model={a.ckpt or p['ckpt']} seed={a.seed} steps={a.steps} cfg={a.cfg} {a.width}x{a.height} x{a.n}{ref}")
+
+    deadline = time.time() + a.timeout
+    while True:
+        h = get(f"/history/{pid}")
+        st = h.get(pid, {}).get("status", {})
+        if st.get("completed") or st.get("status_str") in ("success", "error"):
+            break
+        if time.time() > deadline:
+            sys.exit(f"タイムアウト（{a.timeout}秒）。ComfyUI 側のログを確認すること。")
+        time.sleep(1.0)
+
+    return h, pid, st, t0
 
 
 def main():
@@ -147,6 +215,15 @@ def main():
     ap.add_argument("--ref-w", type=float, default=0.8, dest="ref_w", help="手本の効きの強さ（0〜1.5くらい）")
     ap.add_argument("--ref-mode", default="style", choices=list(REF_MODES), dest="ref_mode",
                     help="style=絵柄だけ（既定）／strong=絵柄を強く（手本の中身が漏れやすい。--ref-w 0.5前後から）／all=中身も寄せる（ほぼ手本どおりになる）")
+    ap.add_argument("--face", default="", help="顔の手本（顔のあたりを切り抜いた画像がよく効く）。個人利用に限る")
+    ap.add_argument("--face-w", type=float, default=0.3, dest="face_w",
+                    help="顔の手本の効きの強さ。イラストでは0.5〜0.6で画面が白っぽく荒れた（2026-10-19実測）→0.3前後から。荒れたら --face を外す")
+    ap.add_argument("--pose", default="", help="ポーズの手本（この画像の姿勢で描く）")
+    ap.add_argument("--pose-w", type=float, default=0.75, dest="pose_w",
+                    help="ポーズの効きの強さ（0〜1）。0.75で手の高さまでBどおりに出た（2026-10-19実測）")
+    ap.add_argument("--draft", action="store_true", help="下書き：大きさを約0.6倍にして速く回す（良いものだけ本番の大きさで描き直す）")
+    ap.add_argument("--keep-ollama", action="store_true", dest="keep_ollama",
+                    help="手本（--ref/--face/--pose）を使う生成でも、前に Ollama のモデルを下ろさない（既定では下ろしてメモリを空ける）")
     ap.add_argument("--timeout", type=int, default=900, help="完了待ちの上限秒")
     ap.add_argument("-o", "--out", default=str(ROOT / "out"))
     a = ap.parse_args()
@@ -160,6 +237,8 @@ def main():
     a.width, a.height = int(m.group(1)), int(m.group(2))
     if a.width % 8 or a.height % 8 or a.width < 256 or a.height < 256:
         sys.exit(f"--size は256以上・8の倍数であること: {a.width}x{a.height}")
+    if a.draft:   # 約0.6倍・64の倍数に丸める
+        a.width, a.height = (max(256, round(v * 0.625 / 64) * 64) for v in (a.width, a.height))
     if a.seed < 0:
         a.seed = random.randint(0, 2**32 - 1)
 
@@ -168,28 +247,21 @@ def main():
     except urllib.error.URLError:
         sys.exit("ComfyUI が起動していない。先に bin/start.sh を実行すること。")
 
-    a.ref_name = upload_ref(a.ref) if a.ref else ""
-    t0 = time.time()
+    # 先に全部の画像があるか確かめてから上げる（途中で止まって上げた分が残らないように。2026-10-19 qa指摘）
+    for opt, path in (("--ref", a.ref), ("--face", a.face), ("--pose", a.pose)):
+        if path and not pathlib.Path(path).expanduser().is_file():
+            sys.exit(f"{opt} の画像が見つからない: {pathlib.Path(path).expanduser()}")
+    if not a.keep_ollama and (a.ref or a.face or a.pose):   # 手本を使う重い生成のときだけ（テイモン等の常駐利用とぶつけない）
+        free_ollama()
+    a.ref_name = a.face_name = a.pose_name = ""
     try:
-        pid = post("/prompt", {"prompt": build_graph(a, p)})["prompt_id"]
-    except SystemExit:
-        cleanup_ref(a.ref_name)
-        raise
-    ref = f" 手本={a.ref_mode}/{a.ref_w}" if a.ref else ""
-    print(f"model={a.ckpt or p['ckpt']} seed={a.seed} steps={a.steps} cfg={a.cfg} {a.width}x{a.height} x{a.n}{ref}")
-
-    deadline = time.time() + a.timeout
-    while True:
-        h = get(f"/history/{pid}")
-        st = h.get(pid, {}).get("status", {})
-        if st.get("completed") or st.get("status_str") in ("success", "error"):
-            break
-        if time.time() > deadline:
-            cleanup_ref(a.ref_name)
-            sys.exit(f"タイムアウト（{a.timeout}秒）。ComfyUI 側のログを確認すること。")
-        time.sleep(1.0)
-    cleanup_ref(a.ref_name)
-
+        a.ref_name = upload_ref(a.ref) if a.ref else ""
+        a.face_name = upload_ref(a.face, "--face") if a.face else ""
+        a.pose_name = upload_ref(a.pose, "--pose") if a.pose else ""
+        h, pid, st, t0 = run(a, p)
+    finally:   # エラー・時間切れ・Ctrl-C でも、上げた手本は必ず消す
+        for u in (a.ref_name, a.face_name, a.pose_name):
+            cleanup_ref(u)
     outdir = pathlib.Path(a.out); outdir.mkdir(parents=True, exist_ok=True)
     saved = []
     for node in h[pid]["outputs"].values():
