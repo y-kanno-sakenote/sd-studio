@@ -4,6 +4,7 @@
 #   bin/start.sh --remote localhost ＋ Tailscale の自分のIPだけに開く
 #                         （同じWi-Fiの他人には見えない。公開もしない）
 #   bin/start.sh stop     止める
+#   bin/start.sh free     モデルをメモリから下ろす（使い終わったら。ComfyUI は動いたまま）
 set -e
 COMFY="$HOME/ComfyUI"
 
@@ -12,6 +13,14 @@ COMFY="$HOME/ComfyUI"
 if [ "$1" = "stop" ]; then
   PIDS=$(lsof -nP -tiTCP:8188 -sTCP:LISTEN 2>/dev/null || true)
   [ -n "$PIDS" ] && kill $PIDS && echo "ComfyUI 停止" || echo "動いていない"
+  exit 0
+fi
+# 使い終わったらモデルをメモリから下ろす（ComfyUI は生成後もモデルを載せたままにする。
+# 手本・ポーズまで使うと11GBほど抱えたままになった：2026-10-19）。ComfyUI は止めない
+if [ "$1" = "free" ]; then
+  curl -s -X POST http://127.0.0.1:8188/free -H "Content-Type: application/json" \
+    -d '{"unload_models": true, "free_memory": true}' -o /dev/null -w "%{http_code}" | grep -q 200 \
+    && echo "モデルをメモリから下ろした" || echo "ComfyUI が動いていない"
   exit 0
 fi
 OLD=$(lsof -nP -tiTCP:8188 -sTCP:LISTEN 2>/dev/null || true)

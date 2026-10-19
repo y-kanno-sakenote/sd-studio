@@ -256,6 +256,11 @@ python3 dev/sd-studio/gen.py "..." --pose B.png --draft     # 下書き（約0.6
 - 中身：拡張 `comfyui_controlnet_aux`（Python部品は本体の版を固定して導入。導入前の一覧は `~/ComfyUI/pip_freeze_before_controlnet_aux_20261019.txt`）＋ `models/controlnet/controlnet-openpose-sdxl-xinsir.safetensors`（xinsir）＋ `models/ipadapter/ip-adapter-plus-face_sdxl_vit-h.safetensors`（h94）。DWPose のモデルは初回の実行時に自動で入る
 - 約束は「手本の絵柄に寄せる」と同じ。Aに使うのは自分のキャラか了承を得た人物だけ。既存のキャラクターは再現しない
 
+## 使い終わったらメモリを空ける
+ComfyUI は生成が終わってもモデルをメモリに載せたままにする（次を速くするため）。手本・ポーズまで使うと約11GB抱えたままになった（2026-10-19）。
+- **Claude が生成を頼まれたら、一続きの生成が終わったところで `dev/sd-studio/bin/start.sh free` を呼ぶ**（ComfyUI は止めない。次の1枚目だけ読み込み直しで20秒ほど遅くなる）
+- 画面から使ったときは、ComfyUI-Manager の「モデルを下ろす（Unload Models）」ボタンで同じことができる
+
 ## gen.py の主なオプション
 - `-m illust|photo` モデル切替
 - `-n 4` 枚数（バッチ）
