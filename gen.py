@@ -6,7 +6,7 @@
 
 サーバは bin/start.sh で先に起動しておくこと。
 """
-import argparse, json, pathlib, random, re, sys, time, urllib.request, urllib.error
+import argparse, atexit, json, os, pathlib, random, re, sys, tempfile, time, urllib.parse, urllib.request, urllib.error
 
 SERVER = "http://127.0.0.1:8188"
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -109,10 +109,7 @@ def build_graph(a, p):
         # ポーズの手本（B）から骨組みを取り出し（DWPose）、ControlNet で骨組みどおりに描かせる
         g["16"] = {"class_type": "LoadImage", "inputs": {"image": a.pose_name}}
         g["17"] = {"class_type": "DWPreprocessor",
-                   "inputs": {"image": ["16", 0], "detect_hand": "enable", "detect_body": "enable",
-                              "detect_face": "enable", "resolution": 1024,
-                              "bbox_detector": "yolox_l.onnx", "pose_estimator": "dw-ll_ucoco_384.onnx",
-                              "scale_stick_for_xinsr_cn": "enable"}}   # xinsir の ControlNet 向けの線の太さ
+                   "inputs": {"image": ["16", 0], **DWPOSE}}   # 設定は check_pose と共通
         g["18"] = {"class_type": "ControlNetLoader",
                    "inputs": {"control_net_name": "controlnet-openpose-sdxl-xinsir.safetensors"}}
         g["19"] = {"class_type": "ControlNetApplyAdvanced",
@@ -146,6 +143,80 @@ def free_ollama():
 REF_MODES = {"style": "style transfer",          # 絵柄だけ寄せる（既定）
              "strong": "strong style transfer",  # 絵柄をより強く。強さ0.8だと手本の中身まで漏れた（2026-10-17 qa実測）→0.5前後から
              "all": "linear"}                    # 絵柄も中身も寄せる（手本がほぼそのまま出る。使いどころ注意）
+
+
+MAX_FETCH = 20 * 1024 * 1024     # URLから取る手本の上限（20MB）
+
+
+def fetch_ref(src, opt):
+    """URL なら一時ファイルに落としてそのパスを返す。ファイルのパスならそのまま返す。
+
+    落とした一時ファイルは終了時に必ず消す（エラー・Ctrl-C でも）。見せてもらった絵を手元に溜めない。
+    """
+    if not re.match(r"^https?://", src or "", re.I):
+        return src
+    try:
+        req = urllib.request.Request(src, headers={"User-Agent": "Mozilla/5.0 (sd-studio)"})
+        with urllib.request.urlopen(req, timeout=30) as r:
+            ctype = r.headers.get("Content-Type", "").split(";")[0].strip().lower()
+            if not ctype.startswith("image/"):
+                sys.exit(f"{opt} のURLが画像ではない（{ctype or '種類が分からない'}）: {src}")
+            data = r.read(MAX_FETCH + 1)
+    except urllib.error.HTTPError as e:
+        sys.exit(f"{opt} のURLを取れない（HTTP {e.code}）: {src}")
+    except urllib.error.URLError as e:
+        sys.exit(f"{opt} のURLにつながらない（{e.reason}）: {src}")
+    if len(data) > MAX_FETCH:
+        sys.exit(f"{opt} の画像が大きすぎる（20MBまで）: {src}")
+    ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(ctype) \
+        or pathlib.Path(urllib.parse.urlparse(src).path).suffix.lower() or ".png"
+    fd, tmp = tempfile.mkstemp(prefix="sdpose_", suffix=ext)
+    os.write(fd, data)
+    os.close(fd)
+    atexit.register(lambda: pathlib.Path(tmp).unlink(missing_ok=True))
+    return tmp
+
+
+DWPOSE = {"detect_hand": "enable", "detect_body": "enable", "detect_face": "enable",
+          "resolution": 1024, "bbox_detector": "yolox_l.onnx",
+          "pose_estimator": "dw-ll_ucoco_384.onnx", "scale_stick_for_xinsr_cn": "enable"}
+
+
+def check_pose(name):
+    """ポーズの手本から骨格が読めたかを、本生成の前に確かめる。読めなければ止める。
+
+    読めないまま進むと ControlNet に空の骨格が渡り、姿勢は一切効かないのに黙って生成してしまう
+    （デッサン人形の線画などで起きる。2026-10-28 に実例）。
+    """
+    from PIL import Image
+    import io as _io
+    g = {"1": {"class_type": "LoadImage", "inputs": {"image": name}},
+         "2": {"class_type": "DWPreprocessor", "inputs": {"image": ["1", 0], **DWPOSE}},
+         "3": {"class_type": "SaveImage", "inputs": {"images": ["2", 0], "filename_prefix": "sdposecheck"}}}
+    pid = post("/prompt", {"prompt": g})["prompt_id"]
+    t0 = time.time()
+    while True:
+        h = get(f"/history/{pid}")
+        st = h.get(pid, {}).get("status", {})
+        if st.get("completed") or st.get("status_str") in ("success", "error"):
+            break
+        if time.time() - t0 > 180:
+            sys.exit("ポーズの読み取りが時間切れ。ComfyUI のログを確認すること")
+        time.sleep(1)
+    imgs = [i for v in h[pid]["outputs"].values() for i in v.get("images", [])]
+    if not imgs:
+        sys.exit("ポーズの読み取りに失敗した（ComfyUI 側のエラー）")
+    i = imgs[0]
+    q = f"/view?filename={i['filename']}&subfolder={i['subfolder']}&type={i['type']}"
+    data = urllib.request.urlopen(SERVER + q).read()
+    # 確かめ用の画像は残さない
+    (pathlib.Path.home() / "ComfyUI" / "output" / i["subfolder"] / i["filename"]).unlink(missing_ok=True)
+    im = Image.open(_io.BytesIO(data)).convert("L")
+    lit = sum(1 for v in im.getdata() if v > 32)
+    if lit / (im.width * im.height) < 0.001:      # 骨格の線がほぼ無い＝人として読めていない
+        sys.exit("ポーズの手本から人の姿勢を読み取れなかった（骨格が空）。"
+                 "このまま描くと姿勢は効かない。人が写った写真の手本を使うこと"
+                 "（デッサン人形の線画は読めないことが多い）")
 
 
 def upload_ref(path, opt="--ref"):
@@ -218,7 +289,7 @@ def main():
     ap.add_argument("--face", default="", help="顔の手本（顔のあたりを切り抜いた画像がよく効く）。個人利用に限る")
     ap.add_argument("--face-w", type=float, default=0.3, dest="face_w",
                     help="顔の手本の効きの強さ。イラストでは0.5〜0.6で画面が白っぽく荒れた（2026-10-19実測）→0.3前後から。荒れたら --face を外す")
-    ap.add_argument("--pose", default="", help="ポーズの手本（この画像の姿勢で描く）")
+    ap.add_argument("--pose", default="", help="ポーズの手本（この画像の姿勢で描く）。画像のパスかURL")
     ap.add_argument("--pose-w", type=float, default=0.75, dest="pose_w",
                     help="ポーズの効きの強さ（0〜1）。0.75で手の高さまでBどおりに出た（2026-10-19実測）")
     ap.add_argument("--draft", action="store_true", help="下書き：大きさを約0.6倍にして速く回す（良いものだけ本番の大きさで描き直す）")
@@ -247,6 +318,9 @@ def main():
     except urllib.error.URLError:
         sys.exit("ComfyUI が起動していない。先に bin/start.sh を実行すること。")
 
+    # ポーズはURLでも渡せる（一時ファイルに落としてから、以降はファイルとして扱う）
+    a.pose = fetch_ref(a.pose, "--pose")
+
     # 先に全部の画像があるか確かめてから上げる（途中で止まって上げた分が残らないように。2026-10-19 qa指摘）
     for opt, path in (("--ref", a.ref), ("--face", a.face), ("--pose", a.pose)):
         if path and not pathlib.Path(path).expanduser().is_file():
@@ -258,6 +332,8 @@ def main():
         a.ref_name = upload_ref(a.ref) if a.ref else ""
         a.face_name = upload_ref(a.face, "--face") if a.face else ""
         a.pose_name = upload_ref(a.pose, "--pose") if a.pose else ""
+        if a.pose_name:
+            check_pose(a.pose_name)      # 骨格が読めなければここで止まる（上げた手本は finally で消える）
         h, pid, st, t0 = run(a, p)
     finally:   # エラー・時間切れ・Ctrl-C でも、上げた手本は必ず消す
         for u in (a.ref_name, a.face_name, a.pose_name):
