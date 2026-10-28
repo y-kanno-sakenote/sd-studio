@@ -1,0 +1,50 @@
+<!doctype html><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ポーズで描く</title>
+<style>
+ :root { color-scheme: light dark; }
+ body { font-family: -apple-system, sans-serif; margin: 0; padding: 48px 32px; max-width: 760px;
+        background: #14110f; color: #f2ece4; line-height: 1.7; }
+ h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: .04em; }
+ h2 { font-size: 15px; margin: 30px 0 6px; }
+ p.sub { color: #9c9187; font-size: 13px; margin: 0 0 24px; }
+ a { color: #c8a678; }
+ ul { padding-left: 20px; font-size: 14px; }
+ p { font-size: 14px; }
+ pre { background: #1c1815; border: 1px solid #332c26; border-radius: 8px; padding: 12px 14px;
+       font-size: 12.5px; white-space: pre-wrap; word-break: break-all; }
+ code { font-size: 12.5px; }
+ .note { border-left: 3px solid #7a6247; padding: 4px 12px; color: #d8cfc5; }
+</style>
+<p><a href="studios.html">← プロンプト工房</a></p>
+<h1>ポーズで描く</h1>
+<p class="sub">ポーズ集の人形の線画や、人が写った写真・絵の姿勢をまねて描く（gen.py の <code>--pose</code>）。個人利用に限る。</p>
+
+<h2>1. ポーズのURLを取る</h2>
+<p><a href="https://ai-pose-gallery.pages.dev/" target="_blank">ai-pose-gallery.pages.dev</a> で使いたい画像を開き、右クリック →「画像のアドレスをコピー」。<br>
+<code>https://ai-pose-gallery.pages.dev/img/full_single_P001_front.png</code> のような形になる。手元の画像ならファイルのパスでもよい。</p>
+
+<h2>2. ComfyUI を起こす（止まっているときだけ）</h2>
+<pre>~/Documents/claudecode@macmini/dev/sd-studio/bin/start.sh</pre>
+
+<h2>3. 描く</h2>
+<pre>python3 ~/Documents/claudecode@macmini/dev/sd-studio/gen.py "1girl, short red hair, white haori, navy hakama, standing, full body" --pose https://ai-pose-gallery.pages.dev/img/full_single_P001_front.png -s 864x1152 --draft</pre>
+<ul>
+ <li>文には服装・髪型と、ポーズの言葉（standing / sitting など）も書くと効きがよい</li>
+ <li><code>--draft</code> は小さめの下書き（約30秒）。良いものだけ <code>--draft</code> を外し、同じ <code>--seed</code> で描き直す</li>
+ <li>大きさは手本と同じ縦横比（3:4 → <code>-s 864x1152</code>）が一番素直</li>
+ <li>描いた絵は <code>dev/sd-studio/out/</code> に入る</li>
+ <li>自分のキャラで描く：<code>--ref キャラの画像.png --ref-mode all --ref-w 0.45</code> を足す</li>
+</ul>
+
+<h2>4. 遊び終わったらメモリを空ける</h2>
+<pre>~/Documents/claudecode@macmini/dev/sd-studio/bin/start.sh free</pre>
+
+<h2>気をつけること</h2>
+<div class="note">
+<ul>
+ <li>人形の線画で使えるのは<strong>立ち・座り・あおり</strong>まで。<strong>寝そべり・俯瞰は崩れる</strong>ので、人が写った写真や絵を手本にする</li>
+ <li>描く前に「骨格（人の写真・絵）」か「線画（人形）」かを表示する。どちらとも読めない色のある絵は、描かずに止まる</li>
+ <li>決め打ちしたいとき：<code>--pose-mode skeleton</code>（骨格だけ）／<code>--pose-mode line</code>（線画だけ）。効きの強さは <code>--pose-w</code>（既定は骨格0.75・線画0.8）</li>
+</ul>
+</div>
