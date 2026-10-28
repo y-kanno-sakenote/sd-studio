@@ -224,8 +224,21 @@ def check_pose(name):
     # 確かめ用の画像は残さない
     (pathlib.Path.home() / "ComfyUI" / "output" / i["subfolder"] / i["filename"]).unlink(missing_ok=True)
     im = Image.open(_io.BytesIO(data)).convert("L")
-    lit = sum(1 for v in im.getdata() if v > 32)
+    lit = sum(im.histogram()[33:])                   # 明るさ33以上＝骨格の線
     return lit / (im.width * im.height) >= 0.001     # 骨格の線がほぼ無い＝人として読めていない
+
+
+def looks_like_lineart(path):
+    """白地に色の薄い線だけの絵か。骨格が読めない絵を何でも線画扱いにしないための見分け。
+
+    カラーの絵を輪郭の手本にすると色の塊まで形として拾ってしまう（2026-10-28 qa指摘）。
+    """
+    from PIL import Image, ImageStat
+    im = Image.open(path).convert("RGB").resize((128, 128))
+    h = im.convert("L").histogram()
+    white = sum(h[200:]) / (128 * 128)                       # ほぼ白の割合
+    sat = ImageStat.Stat(im.convert("HSV").split()[1]).mean[0]  # 彩度の平均
+    return white > 0.6 and sat < 30
 
 
 def pad_to(path, w, h):
@@ -355,6 +368,10 @@ def main():
         sys.exit("ComfyUI が起動していない。先に bin/start.sh を実行すること。")
 
     # ポーズはURLでも渡せる（一時ファイルに落としてから、以降はファイルとして扱う）
+    # kill（SIGTERM）でも finally と atexit の後片付けが走るよう、通常の終了に変える
+    import signal
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+
     a.pose = fetch_ref(a.pose, "--pose")
 
     # 先に全部の画像があるか確かめてから上げる（途中で止まって上げた分が残らないように。2026-10-19 qa指摘）
@@ -368,19 +385,20 @@ def main():
         a.ref_name = upload_ref(a.ref) if a.ref else ""
         a.face_name = upload_ref(a.face, "--face") if a.face else ""
         a.pose_line = False
-        if a.pose and a.pose_mode == "line":
+        if a.pose:
+            # 手本の縦横比を生成に合わせてから上げる（骨格・線画とも、比率が違うと中央が切り取られて
+            # 頭や足が切れる／人形が歪む。2026-10-28 qa指摘）
             a.pose_name = upload_ref(pad_to(a.pose, a.width, a.height), "--pose")
-            a.pose_line = True
-        elif a.pose:
-            a.pose_name = upload_ref(a.pose, "--pose")
-            if not check_pose(a.pose_name):
+            if a.pose_mode == "line":
+                a.pose_line = True
+            elif not check_pose(a.pose_name):
                 if a.pose_mode == "skeleton":
                     sys.exit("ポーズの手本から人の姿勢を読み取れなかった（骨格が空）。このまま描くと姿勢は効かない。"
                              "線画の手本なら --pose-mode line を使う")
-                # 骨格が読めない＝線画とみなして、輪郭を手本にする方式に切り替える
+                if not looks_like_lineart(a.pose):
+                    sys.exit("ポーズの手本から骨格を読めず、線画にも見えない（色のある絵）。このまま描くと姿勢は効かない。"
+                             "人がはっきり写った手本に替えるか、線画として使うなら --pose-mode line")
                 print("骨格が読めなかったので、線画として輪郭を手本にする（MistoLine）")
-                cleanup_ref(a.pose_name)
-                a.pose_name = upload_ref(pad_to(a.pose, a.width, a.height), "--pose")
                 a.pose_line = True
         if a.pose_w is None:             # 強さの既定は方式ごとに違う（どちらも実測）
             a.pose_w = 0.8 if a.pose_line else 0.75
