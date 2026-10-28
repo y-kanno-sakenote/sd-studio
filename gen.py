@@ -105,7 +105,19 @@ def build_graph(a, p):
                               "combine_embeds": "concat", "start_at": 0.0, "end_at": 1.0,
                               "embeds_scaling": "V only"}}
         g["5"]["inputs"]["model"] = ["15", 0]
-    if a.pose_name:
+    if a.pose_name and getattr(a, "pose_line", False):
+        # 線画の手本（デッサン人形など）は輪郭をそのまま手本にする。反転はしない（黒線・白地のまま）。
+        # 最後まで効かせると人形の質感まで描かれるので、7割で手を離す（2026-10-28 実測）
+        g["16"] = {"class_type": "LoadImage", "inputs": {"image": a.pose_name}}
+        g["18"] = {"class_type": "ControlNetLoader",
+                   "inputs": {"control_net_name": "mistoLine_fp16.safetensors"}}
+        g["19"] = {"class_type": "ControlNetApplyAdvanced",
+                   "inputs": {"positive": ["2", 0], "negative": ["3", 0], "control_net": ["18", 0],
+                              "image": ["16", 0], "strength": a.pose_w,
+                              "start_percent": 0.0, "end_percent": 0.7, "vae": ["6", 0]}}
+        g["5"]["inputs"]["positive"] = ["19", 0]
+        g["5"]["inputs"]["negative"] = ["19", 1]
+    elif a.pose_name:
         # ポーズの手本（B）から骨組みを取り出し（DWPose）、ControlNet で骨組みどおりに描かせる
         g["16"] = {"class_type": "LoadImage", "inputs": {"image": a.pose_name}}
         g["17"] = {"class_type": "DWPreprocessor",
@@ -213,10 +225,32 @@ def check_pose(name):
     (pathlib.Path.home() / "ComfyUI" / "output" / i["subfolder"] / i["filename"]).unlink(missing_ok=True)
     im = Image.open(_io.BytesIO(data)).convert("L")
     lit = sum(1 for v in im.getdata() if v > 32)
-    if lit / (im.width * im.height) < 0.001:      # 骨格の線がほぼ無い＝人として読めていない
-        sys.exit("ポーズの手本から人の姿勢を読み取れなかった（骨格が空）。"
-                 "このまま描くと姿勢は効かない。人が写った写真の手本を使うこと"
-                 "（デッサン人形の線画は読めないことが多い）")
+    return lit / (im.width * im.height) >= 0.001     # 骨格の線がほぼ無い＝人として読めていない
+
+
+def pad_to(path, w, h):
+    """線画の手本を、生成の縦横比に白い余白で合わせる（引き伸ばすと人形が歪むため）。
+
+    比率がほぼ同じなら元のまま。足した画像は一時ファイルで、終了時に必ず消す。
+    """
+    from PIL import Image
+    im = Image.open(path).convert("RGB")
+    ar_t, ar_i = w / h, im.width / im.height
+    if abs(ar_i - ar_t) / ar_t < 0.03:
+        return path
+    if ar_i > ar_t:      # 手本の方が横長 → 上下に余白
+        nh = round(im.width / ar_t)
+        canvas = Image.new("RGB", (im.width, nh), "white")
+        canvas.paste(im, (0, (nh - im.height) // 2))
+    else:                # 手本の方が縦長 → 左右に余白
+        nw = round(im.height * ar_t)
+        canvas = Image.new("RGB", (nw, im.height), "white")
+        canvas.paste(im, ((nw - im.width) // 2, 0))
+    fd, tmp = tempfile.mkstemp(prefix="sdpose_", suffix=".png")
+    os.close(fd)
+    canvas.save(tmp)
+    atexit.register(lambda: pathlib.Path(tmp).unlink(missing_ok=True))
+    return tmp
 
 
 def upload_ref(path, opt="--ref"):
@@ -248,7 +282,7 @@ def run(a, p):
     t0 = time.time()
     pid = post("/prompt", {"prompt": build_graph(a, p)})["prompt_id"]
     ref = (f" 手本={a.ref_mode}/{a.ref_w}" if a.ref else "") + (f" 顔={a.face_w}" if a.face else "") + \
-          (f" ポーズ={a.pose_w}" if a.pose else "") + (" 下書き" if a.draft else "")
+          (f" ポーズ={a.pose_w}（{'線画' if getattr(a, 'pose_line', False) else '骨格'}）" if a.pose else "") + (" 下書き" if a.draft else "")
     print(f"model={a.ckpt or p['ckpt']} seed={a.seed} steps={a.steps} cfg={a.cfg} {a.width}x{a.height} x{a.n}{ref}")
 
     deadline = time.time() + a.timeout
@@ -290,8 +324,10 @@ def main():
     ap.add_argument("--face-w", type=float, default=0.3, dest="face_w",
                     help="顔の手本の効きの強さ。イラストでは0.5〜0.6で画面が白っぽく荒れた（2026-10-19実測）→0.3前後から。荒れたら --face を外す")
     ap.add_argument("--pose", default="", help="ポーズの手本（この画像の姿勢で描く）。画像のパスかURL")
-    ap.add_argument("--pose-w", type=float, default=0.75, dest="pose_w",
-                    help="ポーズの効きの強さ（0〜1）。0.75で手の高さまでBどおりに出た（2026-10-19実測）")
+    ap.add_argument("--pose-w", type=float, default=None, dest="pose_w",
+                    help="ポーズの効きの強さ（0〜1）。既定は骨格0.75・線画0.8（どちらも実測）")
+    ap.add_argument("--pose-mode", default="auto", choices=["auto", "skeleton", "line"], dest="pose_mode",
+                    help="auto=骨格を読み、読めなければ線画として輪郭を使う／skeleton=骨格だけ／line=線画だけ")
     ap.add_argument("--draft", action="store_true", help="下書き：大きさを約0.6倍にして速く回す（良いものだけ本番の大きさで描き直す）")
     ap.add_argument("--keep-ollama", action="store_true", dest="keep_ollama",
                     help="手本（--ref/--face/--pose）を使う生成でも、前に Ollama のモデルを下ろさない（既定では下ろしてメモリを空ける）")
@@ -331,9 +367,23 @@ def main():
     try:
         a.ref_name = upload_ref(a.ref) if a.ref else ""
         a.face_name = upload_ref(a.face, "--face") if a.face else ""
-        a.pose_name = upload_ref(a.pose, "--pose") if a.pose else ""
-        if a.pose_name:
-            check_pose(a.pose_name)      # 骨格が読めなければここで止まる（上げた手本は finally で消える）
+        a.pose_line = False
+        if a.pose and a.pose_mode == "line":
+            a.pose_name = upload_ref(pad_to(a.pose, a.width, a.height), "--pose")
+            a.pose_line = True
+        elif a.pose:
+            a.pose_name = upload_ref(a.pose, "--pose")
+            if not check_pose(a.pose_name):
+                if a.pose_mode == "skeleton":
+                    sys.exit("ポーズの手本から人の姿勢を読み取れなかった（骨格が空）。このまま描くと姿勢は効かない。"
+                             "線画の手本なら --pose-mode line を使う")
+                # 骨格が読めない＝線画とみなして、輪郭を手本にする方式に切り替える
+                print("骨格が読めなかったので、線画として輪郭を手本にする（MistoLine）")
+                cleanup_ref(a.pose_name)
+                a.pose_name = upload_ref(pad_to(a.pose, a.width, a.height), "--pose")
+                a.pose_line = True
+        if a.pose_w is None:             # 強さの既定は方式ごとに違う（どちらも実測）
+            a.pose_w = 0.8 if a.pose_line else 0.75
         h, pid, st, t0 = run(a, p)
     finally:   # エラー・時間切れ・Ctrl-C でも、上げた手本は必ず消す
         for u in (a.ref_name, a.face_name, a.pose_name):
