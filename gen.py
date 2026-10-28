@@ -51,6 +51,25 @@ def get(path):
     return _open(SERVER + path)
 
 
+_PENDING = []   # 送ったが終わりを見届けていないジョブ（途中で止めたら ComfyUI 側も止める）
+
+
+def cancel_pending():
+    """自分の送ったジョブだけを止める（オーナーの他のジョブには触らない）。
+
+    kill しても ComfyUI 側は走り続け、確かめ用の画像まで output に残っていた（2026-10-28 qa指摘）。
+    """
+    for pid in _PENDING:
+        try:
+            post("/queue", {"delete": [pid]})
+            post("/interrupt", {"prompt_id": pid})   # 走っているのが自分のジョブのときだけ効く
+        except Exception:
+            pass
+    _PENDING.clear()
+    for f in (pathlib.Path.home() / "ComfyUI" / "output").glob("sdposecheck_*.png"):
+        f.unlink(missing_ok=True)
+
+
 def build_graph(a, p):
     pos = f"{a.prompt}, {p['quality']}" if not a.raw else a.prompt
     src = ["9", 0] if a.lora else ["1", 0]   # LoRA があれば model/clip は LoraLoader 経由
@@ -206,6 +225,7 @@ def check_pose(name):
          "2": {"class_type": "DWPreprocessor", "inputs": {"image": ["1", 0], **DWPOSE}},
          "3": {"class_type": "SaveImage", "inputs": {"images": ["2", 0], "filename_prefix": "sdposecheck"}}}
     pid = post("/prompt", {"prompt": g})["prompt_id"]
+    _PENDING.append(pid)
     t0 = time.time()
     while True:
         h = get(f"/history/{pid}")
@@ -215,6 +235,7 @@ def check_pose(name):
         if time.time() - t0 > 180:
             sys.exit("ポーズの読み取りが時間切れ。ComfyUI のログを確認すること")
         time.sleep(1)
+    _PENDING.remove(pid)
     imgs = [i for v in h[pid]["outputs"].values() for i in v.get("images", [])]
     if not imgs:
         sys.exit("ポーズの読み取りに失敗した（ComfyUI 側のエラー）")
@@ -294,6 +315,7 @@ def run(a, p):
     """グラフを投げて完了まで待つ。戻り値は (history, prompt_id, status, 開始時刻)"""
     t0 = time.time()
     pid = post("/prompt", {"prompt": build_graph(a, p)})["prompt_id"]
+    _PENDING.append(pid)
     ref = (f" 手本={a.ref_mode}/{a.ref_w}" if a.ref else "") + (f" 顔={a.face_w}" if a.face else "") + \
           (f" ポーズ={a.pose_w}（{'線画' if getattr(a, 'pose_line', False) else '骨格'}）" if a.pose else "") + (" 下書き" if a.draft else "")
     print(f"model={a.ckpt or p['ckpt']} seed={a.seed} steps={a.steps} cfg={a.cfg} {a.width}x{a.height} x{a.n}{ref}")
@@ -308,6 +330,7 @@ def run(a, p):
             sys.exit(f"タイムアウト（{a.timeout}秒）。ComfyUI 側のログを確認すること。")
         time.sleep(1.0)
 
+    _PENDING.remove(pid)
     return h, pid, st, t0
 
 
@@ -404,6 +427,7 @@ def main():
             a.pose_w = 0.8 if a.pose_line else 0.75
         h, pid, st, t0 = run(a, p)
     finally:   # エラー・時間切れ・Ctrl-C でも、上げた手本は必ず消す
+        cancel_pending()
         for u in (a.ref_name, a.face_name, a.pose_name):
             cleanup_ref(u)
     outdir = pathlib.Path(a.out); outdir.mkdir(parents=True, exist_ok=True)
