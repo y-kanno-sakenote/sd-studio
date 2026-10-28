@@ -59,12 +59,18 @@ def cancel_pending():
 
     kill しても ComfyUI 側は走り続け、確かめ用の画像まで output に残っていた（2026-10-28 qa指摘）。
     """
-    for pid in _PENDING:
+    def send(path, payload):
+        # /queue と /interrupt は本文が空で返る。post() だと JSON の読み取りで落ちて
+        # interrupt まで届かなかった（2026-10-28 qa指摘）ので、返事は読まずに1本ずつ送る
         try:
-            post("/queue", {"delete": [pid]})
-            post("/interrupt", {"prompt_id": pid})   # 走っているのが自分のジョブのときだけ効く
+            urllib.request.urlopen(urllib.request.Request(
+                SERVER + path, data=json.dumps(payload).encode(),
+                headers={"Content-Type": "application/json"}), timeout=5).read()
         except Exception:
             pass
+    for pid in _PENDING:
+        send("/queue", {"delete": [pid]})
+        send("/interrupt", {"prompt_id": pid})   # 走っているのが自分のジョブのときだけ効く
     _PENDING.clear()
     for f in (pathlib.Path.home() / "ComfyUI" / "output").glob("sdposecheck_*.png"):
         f.unlink(missing_ok=True)
