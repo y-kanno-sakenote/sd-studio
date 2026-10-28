@@ -92,6 +92,7 @@ def _studio_links():
         except Exception:
             continue
         out.append(f"[{o.ICON} {o.TITLE}](http://{host}:{o.PORT})")
+    out.insert(0, f"[🏠 入口](http://{host}:8511)")   # 入口ページ（bin/studios.sh が 8511 で配る）
     out.append("[📷 写真の絵柄がえ帖](https://y-kanno-sakenote.github.io/sd-studio/photo-styles.html)")  # 写真を外部AIで描き直す頼み文集（公開版のページ）
     return "　".join(out)
 

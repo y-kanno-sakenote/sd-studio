@@ -1,6 +1,7 @@
 #!/bin/bash
 # 全ジャンルのプロンプト工房を立ち上げて、入口ページを開く。
 #   bin/studios.sh          起動して入口を開く（動いているものはそのまま）
+#   入口ページは http://<TailscaleのIP>:8511 で配る（hub/ の中だけ。localhost と Tailscale の2つにだけ開く）
 #   bin/studios.sh stop     全部止める
 set -e
 ROOT="/Users/ymacmini/Documents/claudecode@macmini/dev/sd-studio"
@@ -18,7 +19,7 @@ for f in sorted(pathlib.Path('$ROOT/genres').glob('*.py')):
     except Exception: pass
 print(','.join(ps))
 ")
-  PIDS=$(lsof -nP -tiTCP:"${PORTS:-8511}" -sTCP:LISTEN 2>/dev/null || true)
+  PIDS=$(lsof -nP -tiTCP:"8511${PORTS:+,$PORTS}" -sTCP:LISTEN 2>/dev/null || true)
   [ -n "$PIDS" ] && kill $PIDS && echo "全ジャンル停止" || echo "動いているものは無かった"
   exit 0
 fi
@@ -47,7 +48,7 @@ done <<< "$GENRES"
 # Tailscale が動いていれば、入口のリンクをそのIPにする（このMacからも他端末からも同じURLで開ける）
 TSIP=$(/Applications/Tailscale.app/Contents/MacOS/Tailscale ip -4 2>/dev/null | head -1 || true)
 HOSTNAME_FOR_LINKS="${TSIP:-localhost}"
-[ -n "$TSIP" ] && echo "外部ブラウザから → http://$TSIP:8511 など（Tailscale に繋いだ端末だけ）"
+[ -n "$TSIP" ] && echo "外部ブラウザから → http://$TSIP:8511（入口。Tailscale に繋いだ端末だけ）"
 
 # 入口ページを、いま存在するジャンルから組み立てる
 "$PY" - "$ROOT" "$HOSTNAME_FOR_LINKS" <<'PYEOF'
@@ -70,7 +71,7 @@ for f in sorted((root / "genres").glob("*.py")):
       <div class="icon">{g.ICON}</div>
       <div class="name">{html.escape(g.TITLE)}</div>
       <div class="meta">:{g.PORT} ・ 語彙{n}</div></a>''')
-(root / "studios.html").write_text(f'''<!doctype html><meta charset="utf-8">
+(root / "hub" / "index.html").write_text(f'''<!doctype html><meta charset="utf-8">
 <title>プロンプト工房</title>
 <style>
  :root {{ color-scheme: light dark; }}
@@ -97,8 +98,15 @@ for f in sorted((root / "genres").glob("*.py")):
 <p class="comfy">▸ <a href="http://{host}:8188" target="_blank">ComfyUI（生成する場所）</a><br><span style="color:#6d645d">ComfyUI を他端末から使うときは <code>bin/start.sh --remote</code> で起動する</span></p>
 <p class="comfy">▸ <a href="file://{saved}">保存したプロンプト（savedフォルダ）</a><br><span style="color:#6d645d">工房ごとに1ファイル。このMacの中だけ・gitにも公開版にも出ない</span></p>
 ''', encoding="utf-8")
-print(f"入口ページ: {root/'studios.html'}")
 PYEOF
 
+# 入口ページを 8511 で配る（hub/ の中だけを見せる。saved や out は配らない）
+if ! curl -s -o /dev/null --max-time 1 "http://localhost:8511"; then
+  for ADDR in 127.0.0.1 $TSIP; do
+    nohup python3 -m http.server 8511 --bind "$ADDR" --directory "$ROOT/hub" > "/tmp/sd-studio_hub_$ADDR.log" 2>&1 &
+  done
+fi
+echo "入口ページ → http://$HOSTNAME_FOR_LINKS:8511"
+
 sleep 4
-open "$ROOT/studios.html"
+open "http://$HOSTNAME_FOR_LINKS:8511"
